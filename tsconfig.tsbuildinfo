@@ -1,0 +1,1 @@
+{"root":["./manifest.config.ts","./postcss.config.js","./tailwind.config.js","./vite.config.ts","./src/background/index.ts","./src/components/TwindShadowWrapper.ts","./src/content/bilibili.ts","./src/content/youtube.ts","./src/content/views/SiderComponent.vue","./src/sidepanel/SidePanel.vue","./src/sidepanel/main.ts"],"version":"5.7.3"}
