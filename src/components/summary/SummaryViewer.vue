@@ -171,9 +171,9 @@ const contentIcons = {
 </script>
 
 <template>
-  <div>
+  <div class="h-full flex flex-col">
     <!-- 导航栏 -->
-    <div class="flex gap-2 mb-4 border-b border-border">
+    <div class="flex gap-2 mb-4 border-b border-border flex-shrink-0">
       <button 
         @click="activeSection = 'all'" 
         class="px-3 py-2 text-sm transition-colors duration-200 relative"
@@ -217,7 +217,7 @@ const contentIcons = {
     </div>
     
     <!-- 全部内容视图 -->
-    <div v-if="activeSection === 'all'" class="overflow-y-auto max-h-[400px]">
+    <div v-if="activeSection === 'all'" class="max-h-96 overflow-y-auto p-3">
       <!-- 内容生成选项或内容视图 -->
       <template v-if="hasContent">
         <!-- 全部视图的操作按钮 -->
@@ -345,7 +345,7 @@ const contentIcons = {
     </div>
 
     <!-- 单独内容视图 -->
-    <div v-else class="p-3" @click="handleTimeLink">
+    <div v-else class="max-h-96 overflow-y-auto p-3" @click="handleTimeLink">
       <ContentSection
         v-if="activeSection === 'overview'"
         title="视频概览"
@@ -353,6 +353,8 @@ const contentIcons = {
         :is-generating="overviewContent.isGenerating.value"
         color-theme="primary"
         :icon="contentIcons.overview"
+        @generate="generateContent('overview')"
+        @copy="overviewContent.copyToClipboard(overviewContent.content.value)"
       />
 
       <ContentSection
@@ -362,6 +364,8 @@ const contentIcons = {
         :is-generating="keypointsContent.isGenerating.value"
         color-theme="secondary"
         :icon="contentIcons.keypoints"
+        @generate="generateContent('keypoints')"
+        @copy="keypointsContent.copyToClipboard(keypointsContent.content.value)"
       />
 
       <ContentSection
@@ -371,6 +375,8 @@ const contentIcons = {
         :is-generating="questionsContent.isGenerating.value"
         color-theme="accent"
         :icon="contentIcons.questions"
+        @generate="generateContent('questions')"
+        @copy="questionsContent.copyToClipboard(questionsContent.content.value)"
       />
       <ContentSection
         v-if="activeSection === 'summary'"
@@ -379,6 +385,8 @@ const contentIcons = {
         :is-generating="summaryContent.isGenerating.value"
         color-theme="default"
         :icon="contentIcons.summary"
+        @generate="generateContent('summary')"
+        @copy="summaryContent.copyToClipboard(summaryContent.content.value)"
       />
     </div>
   </div>

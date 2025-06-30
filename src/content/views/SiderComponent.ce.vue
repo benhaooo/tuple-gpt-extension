@@ -138,8 +138,8 @@ const summarizeVideo = () => {
     </header>
 
     <!-- 主体内容 -->
-    <main class="flex-grow overflow-y-auto">
-      <div v-if="activeTab === 'subtitles'" class="p-3">
+    <main class="flex-grow overflow-y-auto min-h-0">
+      <div v-show="activeTab === 'subtitles'" class="p-3">
       <SubtitleViewer 
         :platform-type="props.platformType"
         :subtitles="subtitles"
@@ -150,16 +150,16 @@ const summarizeVideo = () => {
       />
       </div>
     <!-- 总结视图 -->
-      <div v-else-if="activeTab === 'summary'" class="p-3">
+      <div v-show="activeTab === 'summary'" class="p-3">
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-base font-medium text-foreground">{{ videoTitle || '视频总结' }}</h2>
+        </div>
+        <SummaryViewer 
+          :subtitles-content="subtitlesContent" 
+          :video-title="videoTitle"
+          @jump-to-time="jumpToTime"
+        />
       </div>
-      <SummaryViewer 
-        :subtitles-content="subtitlesContent" 
-        :video-title="videoTitle"
-        @jump-to-time="jumpToTime"
-      />
-    </div>
     </main>
 
     <!-- Chat Footer -->

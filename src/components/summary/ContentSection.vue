@@ -42,7 +42,7 @@ const themeClasses = computed(() => {
         bg: 'bg-accent-soft',
         text: 'text-accent-soft-foreground',
         prose: 'prose-accent'
-      }
+  }
     default:
       return {
         bg: 'bg-background',
