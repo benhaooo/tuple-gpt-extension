@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import App from './SidePanel.vue'
+import App from './App.vue'
 import { setupGlobalTwind } from '@/components/TwindShadowWrapper'
 import { createPinia } from 'pinia'
 

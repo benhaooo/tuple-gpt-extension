@@ -1,0 +1,219 @@
+<script setup lang="ts">
+import { ref, watch, computed, nextTick } from 'vue'
+import { VideoType } from '@/utils/subtitlesApi'
+import { useVideoStore } from '@/store/videoStore'
+import { 
+  ClipboardDocumentIcon, 
+  ArrowPathIcon, 
+  CheckIcon,
+  LinkIcon,
+} from '@heroicons/vue/24/outline'
+
+const props = defineProps<{
+  platformType: VideoType;
+  subtitles: any[];
+  isLoading: boolean;
+  error: string | null;
+  subtitlesContent: string;
+  loadSubtitles: () => Promise<void>;
+}>()
+
+// 视图状态
+const bilingualMode = ref(false)
+const subtitlesRef = ref<HTMLElement | null>(null) // 字幕容器引用
+const copySuccess = ref(false)
+const isUserScrolling = ref(false) // 用户是否正在手动滚动
+const userScrollTimer = ref<number | null>(null) // 用户滚动计时器
+
+// 获取 Pinia store
+const videoStore = useVideoStore()
+
+// 直接使用计算属性绑定 store 中的自动滚动状态
+const autoScrollEnabled = computed({
+  get: () => videoStore.autoScroll,
+  set: (value) => videoStore.setAutoScroll(value)
+})
+
+// 当前激活的字幕索引计算属性
+const currentSubtitleIndex = computed(() => videoStore.activeSubtitleIndex)
+
+// 获取视频平台名称（用于UI显示）
+const platformName = computed(() => {
+  switch (props.platformType) {
+    case VideoType.YOUTUBE:
+      return 'YouTube'
+    case VideoType.BILIBILI:
+      return 'Bilibili'
+    default:
+      return '未知平台'
+  }
+})
+
+const toggleBilingual = () => {
+  bilingualMode.value = !bilingualMode.value
+}
+
+// 更新跳转到指定时间的功能
+const jumpToTime = (timeStr: string) => {
+  if (!timeStr) return
+  // 使用store中的方法直接跳转
+  videoStore.jumpToTimeByString(timeStr)
+}
+
+// 处理用户手动滚动事件
+const handleUserScroll = () => {
+  // 标记用户正在手动滚动
+  isUserScrolling.value = true
+  
+  // 清除之前的计时器
+  if (userScrollTimer.value !== null) {
+    clearTimeout(userScrollTimer.value)
+  }
+  
+  // 设置新的计时器，1.5秒后恢复自动滚动
+  userScrollTimer.value = setTimeout(() => {
+    isUserScrolling.value = false
+    userScrollTimer.value = null
+  }, 1500) as unknown as number
+}
+
+// 滚动到当前字幕的函数
+const scrollToCurrentSubtitle = (index: number) => {
+  // 如果用户正在手动滚动，不执行自动滚动
+  if (isUserScrolling.value) return
+  
+  const container = subtitlesRef.value
+  if (!container) return
+  
+  const targetElement = container.querySelectorAll('.subtitle-item')[index] as HTMLElement
+  if (!targetElement) return
+
+  // 手动计算滚动位置以避免影响页面
+  const containerRect = container.getBoundingClientRect()
+  const targetRect = targetElement.getBoundingClientRect()
+
+  // 计算目标元素相对于容器的顶部偏移量
+  const offsetTop = targetRect.top - containerRect.top
+  
+  // 计算使目标元素居中所需的滚动位置
+  const newScrollTop = container.scrollTop + offsetTop - (container.clientHeight / 2) + (targetElement.clientHeight / 2)
+
+  container.scrollTop = newScrollTop
+}
+
+// 复制文本到剪贴板
+const copyToClipboard = async (text: string): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(text)
+    copySuccess.value = true
+    setTimeout(() => {
+      copySuccess.value = false
+    }, 2000)
+    return Promise.resolve()
+  } catch (err) {
+    console.error('复制失败:', err)
+    return Promise.reject(err)
+  }
+}
+
+// 复制字幕功能
+const copySubtitles = () => {
+  if (props.subtitlesContent && props.subtitlesContent.trim() !== '') {
+    copyToClipboard(props.subtitlesContent)
+  }
+}
+
+// 监听当前激活的字幕索引变化，自动滚动到对应字幕
+watch(() => videoStore.activeSubtitleIndex, (newIndex) => {
+  if (newIndex !== null && autoScrollEnabled.value) {
+    nextTick(() => scrollToCurrentSubtitle(newIndex))
+  }
+})
+</script>
+
+<template>
+  <div>
+    <!-- 字幕标题和双语切换 -->
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-medium text-foreground">{{ platformName }}字幕</h2>
+      <div class="flex items-center gap-2">
+        <!-- 双语切换 -->
+        <span class="text-sm text-foreground">双语</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="bilingualMode" class="sr-only peer" @change="toggleBilingual">
+          <div class="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+        </label>
+        
+        <!-- 自动滚动切换 -->
+        <button
+          @click="autoScrollEnabled = !autoScrollEnabled"
+          class="p-2 rounded-lg hover:bg-accent"
+          :title="autoScrollEnabled ? '已开启字幕跟随' : '已关闭字幕跟随'"
+        >
+          <LinkIcon class="h-5 w-5" :class="[
+            autoScrollEnabled ? 'text-primary' : 'text-muted-foreground',
+            isUserScrolling && autoScrollEnabled ? 'animate-pulse' : ''
+          ]" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div v-if="isLoading" class="flex justify-center items-center py-10">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div v-else-if="error" class="py-6 text-center">
+      <div class="text-destructive mb-2">{{ error }}</div>
+      <button @click="loadSubtitles" class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
+        <ArrowPathIcon class="h-5 w-5" />
+      </button>
+    </div>
+
+    <!-- 无字幕提示 -->
+    <div v-else-if="subtitles.length === 0" class="py-6 text-center">
+      <div class="text-muted-foreground mb-2">未找到字幕</div>
+      <button @click="loadSubtitles" class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
+        <ArrowPathIcon class="h-5 w-5" />
+      </button>
+    </div>
+
+    <!-- 字幕列表 -->
+    <div 
+      v-else 
+      class="space-y-1 max-h-96 overflow-y-auto"
+      style="scroll-behavior: smooth;"
+      ref="subtitlesRef"
+      @scroll="handleUserScroll"
+    >
+      <div 
+        v-for="(subtitle, index) in subtitles" 
+        :key="`${subtitle.startTime}-${subtitle.endTime}`" 
+        class="flex gap-3 leading-relaxed py-1.5 px-2 rounded-md transition-colors duration-200 subtitle-item cursor-pointer"
+        :class="[
+          currentSubtitleIndex === index 
+            ? 'bg-accent' 
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        ]"
+        @click="jumpToTime(subtitle.time)"
+      >
+        <span class="font-mono w-12 flex-shrink-0" :class="[currentSubtitleIndex === index ? 'text-primary' : '']">{{ subtitle.time }}</span>
+        <div class="flex flex-col">
+          <span>{{ subtitle.text }}</span>
+          <span v-if="bilingualMode && subtitle.translatedText" class="text-muted-foreground/80 text-xs mt-1">
+            {{ subtitle.translatedText }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Copy button -->
+    <div class="mt-2">
+      <button @click="copySubtitles" class="p-2 rounded-lg hover:bg-accent">
+        <CheckIcon v-if="copySuccess" class="h-5 w-5 text-green-500" />
+        <ClipboardDocumentIcon v-else class="h-5 w-5 text-muted-foreground" />
+      </button>
+    </div>
+  </div>
+</template> 

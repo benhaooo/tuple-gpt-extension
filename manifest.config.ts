@@ -5,7 +5,11 @@ export default defineManifest({
   manifest_version: 3,
   name: pkg.name,
   version: pkg.version,
-  permissions: ['sidePanel', 'storage'],
+  permissions: ['sidePanel', 'storage', 'activeTab', 'webNavigation'],
+  host_permissions: [
+    "https://*.youtube.com/*",
+    "https://*.bilibili.com/*"
+  ],
   icons: {
     '48': 'public/logo.png',
   },
@@ -15,6 +19,7 @@ export default defineManifest({
       '48': 'public/logo.png',
     },
   },
+  options_page: 'src/options/index.html',
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },

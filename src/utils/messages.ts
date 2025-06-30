@@ -1,0 +1,100 @@
+/**
+ * 消息类型常量
+ */
+export enum MessageType {
+  // 导航事件
+  NAVIGATION_CHANGED = 'NAVIGATION_CHANGED',
+  // 字幕操作
+  INITIALIZE_SUBTITLES = 'INITIALIZE_SUBTITLES',
+  // 标签页注册相关
+  REGISTER_TAB = 'REGISTER_TAB',
+  UNREGISTER_TAB = 'UNREGISTER_TAB',
+  URL_CHANGE_NOTIFICATION = 'URL_CHANGE_NOTIFICATION',
+}
+
+/**
+ * 消息接口
+ */
+export interface Message {
+  type: MessageType;
+  data?: any;
+}
+
+/**
+ * 标签页注册消息
+ */
+export interface RegisterTabMessage extends Message {
+  type: MessageType.REGISTER_TAB;
+}
+
+/**
+ * 取消标签页注册消息
+ */
+export interface UnregisterTabMessage extends Message {
+  type: MessageType.UNREGISTER_TAB;
+}
+
+/**
+ * URL变化通知消息
+ */
+export interface UrlChangeNotificationMessage extends Message {
+  type: MessageType.URL_CHANGE_NOTIFICATION;
+  data: {
+    url: string;
+  };
+}
+
+/**
+ * 发送消息到当前内容脚本
+ * @param message 消息对象
+ */
+export function sendMessageToContentScript(message: Message): Promise<any> {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, message, (response) => {
+          resolve(response);
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * 发送消息到指定标签页
+ * @param tabId 标签页ID
+ * @param message 消息对象
+ */
+export function sendMessageToTab(tabId: number, message: Message): Promise<any> {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      resolve(response);
+    });
+  });
+}
+
+/**
+ * 发送消息到背景脚本
+ * @param message 消息对象
+ */
+export function sendMessageToBackground(message: Message): Promise<any> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      resolve(response);
+    });
+  });
+}
+
+/**
+ * 注册消息监听器
+ * @param callback 消息处理回调
+ */
+export function registerMessageListener(callback: (message: Message, sender: chrome.runtime.MessageSender) => void): void {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    callback(message, sender);
+    sendResponse({ received: true });
+    return true; // 保持消息通道开放
+  });
+} 

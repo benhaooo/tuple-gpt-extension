@@ -9,6 +9,11 @@
     "paths": {
       "@/*": ["src/*"]
     },
+    "plugins": [
+      {
+        "name": "@twind/typescript-plugin"
+      }
+    ],
     "resolveJsonModule": true,
     "types": [
       "vite/client",

@@ -1,32 +1,45 @@
-import { defineCustomElement, DefineComponent } from 'vue'
+import { defineCustomElement, createApp } from 'vue'
+import { createPinia } from 'pinia'
 import install from '@twind/with-web-components'
-import { defineConfig } from '@twind/core'
-import presetAutoprefix from '@twind/preset-autoprefix'
-import presetTailwind from '@twind/preset-tailwind'
-
-// Twind配置
-const config = defineConfig({
-  presets: [presetAutoprefix(), presetTailwind()],
-  hash: false, // 不对类名进行哈希处理
-})
+import { setup } from '@twind/core'
+import twindConfig from '../../twind.config'
 
 // 创建Twind的Web Components包装器
-const withTwind = install(config)
+// install 会处理好隔离，无需全局 setup
+const withTwind = install(twindConfig)
+
+/**
+ * 为普通页面（非Shadow DOM）设置Twind
+ * 这适用于扩展的选项页和弹出页等
+ */
+export function setupGlobalTwind() {
+  setup(twindConfig)
+}
 
 /**
  * 将Vue组件转换为支持Twind的自定义元素
  * @param component Vue组件
  * @param tagName 自定义元素的标签名
+ * @param options 额外选项，如插件等
  * @returns 注册好的自定义元素构造器
  */
-export function createTwindElement(component: DefineComponent<any, any, any>, tagName: string) {
-  // 将组件转换为自定义元素构造器
-  const CustomElement = defineCustomElement(component)
+export function createTwindElement(component: any, tagName: string, options?: { plugins?: any[] }) {
+  // 注意：这个函数现在主要用于那些不需要Pinia注入的简单场景，
+  // 或者Pinia在组件内部自己处理。
+  // 对于需要共享store的注入，injectCustomElement中的方法更可靠。
+
+  // 将组件转换为自定义元素构造器（内部使用 Shadow DOM）
+  const CustomElement = defineCustomElement({
+    ...component,
+  })
   
   // 如果自定义元素尚未定义，则注册
   if (!customElements.get(tagName)) {
     // 使用Twind包装自定义元素
-    customElements.define(tagName, withTwind(CustomElement))
+    const TwindElement = withTwind(CustomElement)
+    
+    // 定义自定义元素
+    customElements.define(tagName, TwindElement)
   }
   
   return CustomElement
@@ -39,21 +52,46 @@ export function createTwindElement(component: DefineComponent<any, any, any>, ta
 export function injectCustomElement(options: {
   containerSelector: string,     // 容器选择器
   tagName: string,              // 自定义元素标签名
+  component: any,               // 要注入的Vue组件
   elementId: string,            // 注入元素的ID
   position?: 'append' | 'prepend' | 'afterElement' | 'beforeElement', // 插入位置
   targetElementSelector?: string, // 目标元素选择器（用于afterElement和beforeElement）
   timeout?: number,             // 超时时间（毫秒）
   styles?: Partial<CSSStyleDeclaration>, // 额外的样式
+  props?: Record<string, any>,  // 传递给组件的属性
 }) {
   const {
     containerSelector,
     tagName,
+    component,
     elementId,
     position = 'append',
     targetElementSelector,
     timeout = 10000,
-    styles = {}
+    styles = {},
+    props = {}
   } = options
+
+  // 定义一个Web Component，它在内部渲染我们的Vue组件并提供Pinia
+  if (!customElements.get(tagName)) {
+    // 使用Twind包装器
+    const TwindElement = withTwind(class extends HTMLElement {
+      constructor() {
+        super();
+        const shadowRoot = this.attachShadow({ mode: 'open' });
+
+        // 创建一个宿主元素，因为app.mount需要一个常规元素
+        const appHost = document.createElement('div');
+        shadowRoot.appendChild(appHost);
+
+        const app = createApp(component, props);
+        app.use(createPinia()); // 为这个组件实例创建一个新的Pinia
+        app.mount(appHost);
+      }
+    });
+
+    customElements.define(tagName, TwindElement);
+  }
   
   // 等待目标容器加载完成
   let timeoutId: number | undefined
@@ -80,6 +118,17 @@ export function injectCustomElement(options: {
           mountPoint.style[prop] = value
         }
       })
+      
+      // 设置props
+      if (props) {
+        Object.entries(props).forEach(([key, value]) => {
+          // 将驼峰命名转换为kebab-case (例如 platformType -> platform-type)
+          const kebabKey = key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+          // 对于复杂类型，转换为JSON字符串
+          const propValue = typeof value === 'object' ? JSON.stringify(value) : value
+          mountPoint.setAttribute(kebabKey, propValue)
+        })
+      }
       
       // 根据指定的位置插入元素
       switch (position) {
