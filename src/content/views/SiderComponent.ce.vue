@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { createSubtitlesHook } from '@/utils/subtitlesFactory'
 import { useVideoStore } from '@/store/videoStore'
@@ -100,6 +100,8 @@ const summarizeVideo = () => {
   // 切换到总结选项卡
   activeTab.value = 'summary'
 }
+
+
 </script>
 
 <template>
@@ -140,9 +142,8 @@ const summarizeVideo = () => {
     <!-- 主体内容 -->
     <main class="flex-grow overflow-y-auto min-h-0">
       <div v-show="activeTab === 'subtitles'" class="p-3">
-      <SubtitleViewer 
+      <SubtitleViewer
         :platform-type="props.platformType"
-        :subtitles="subtitles"
         :is-loading="isLoading"
         :error="error"
         :subtitles-content="subtitlesContent"

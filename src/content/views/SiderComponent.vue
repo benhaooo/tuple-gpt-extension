@@ -134,7 +134,7 @@ ${subtitlesContent.value}
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-KczEawHZsejJCgv4SDoy2PEjRsnakEjdsTWpIpOeirNjFH2I' // 请替换为你的API密钥
+        'Authorization': 'Bearer sk-sKF8mGzfAJTMDFBzloIrriFmn9fcMB233wVbUeEm9mEVqYhO' // 请替换为你的API密钥
       },
       body: JSON.stringify({
         model: 'gemini-2.5-pro-preview-05-06', // 可根据需要选择模型

@@ -2,31 +2,54 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { useVideoStore } from '@/store/videoStore'
-import { 
-  ClipboardDocumentIcon, 
-  ArrowPathIcon, 
+import { useSettingsStore } from '@/store/settingsStore'
+import {
+  ClipboardDocumentIcon,
+  ArrowPathIcon,
   CheckIcon,
   LinkIcon,
+  SpeakerWaveIcon,
 } from '@heroicons/vue/24/outline'
+import {
+  MessageType,
+  sendMessageToBackground,
+  type TranscribeBilibiliAudioMessage
+} from '@/utils/messages'
 
 const props = defineProps<{
   platformType: VideoType;
-  subtitles: any[];
   isLoading: boolean;
   error: string | null;
   subtitlesContent: string;
   loadSubtitles: () => Promise<void>;
 }>()
 
+
+
 // 视图状态
+const internalError = ref<string | null>(props.error)
+watch(
+  () => props.error,
+  (newVal) => {
+    internalError.value = newVal
+  }
+)
 const bilingualMode = ref(false)
 const subtitlesRef = ref<HTMLElement | null>(null) // 字幕容器引用
 const copySuccess = ref(false)
 const isUserScrolling = ref(false) // 用户是否正在手动滚动
 const userScrollTimer = ref<number | null>(null) // 用户滚动计时器
 
+// 音频转录相关状态
+const isTranscribing = ref(false)
+const transcriptionProgress = ref('')
+
 // 获取 Pinia store
 const videoStore = useVideoStore()
+const settingsStore = useSettingsStore()
+
+// 从store获取字幕数据
+const subtitles = computed(() => videoStore.subtitles)
 
 // 直接使用计算属性绑定 store 中的自动滚动状态
 const autoScrollEnabled = computed({
@@ -123,10 +146,93 @@ const copySubtitles = () => {
   }
 }
 
+// 转录音频功能
+const transcribeAudio = async () => {
+  if (props.platformType !== VideoType.BILIBILI) {
+    alert('音频转录功能目前仅支持Bilibili')
+    return
+  }
+
+  const settings = settingsStore.settings
+  if (!settings.whisperApiKey) {
+    alert('请先在设置中配置Whisper API Key')
+    return
+  }
+
+  try {
+    isTranscribing.value = true
+    transcriptionProgress.value = '获取音频并开始转录...'
+
+    // 发送转录消息到content script
+    const message: TranscribeBilibiliAudioMessage = {
+      type: MessageType.TRANSCRIBE_BILIBILI_AUDIO,
+      data: {
+        whisperApiKey: settings.whisperApiKey,
+        whisperApiEndpoint: settings.whisperApiEndpoint
+      }
+    }
+
+    await sendMessageToBackground(message)
+  } catch (error) {
+    console.error('转录音频失败:', error)
+    transcriptionProgress.value = '转录失败: ' + (error as Error).message
+    setTimeout(() => {
+      transcriptionProgress.value = ''
+      isTranscribing.value = false
+    }, 3000)
+  }
+}
+
+// 处理转录完成消息
+const handleTranscriptionComplete = (data: any) => {
+  transcriptionProgress.value = '转录完成'
+  isTranscribing.value = false
+  internalError.value = null // 清除错误状态，确保UI更新
+
+  // 将转录字幕更新到store中，UI会自动响应
+  if (data.subtitles && data.subtitles.length > 0) {
+    console.log('转录字幕:', data.subtitles)
+    videoStore.updateSubtitles(data.subtitles)
+  }
+
+  // 清除进度提示
+  setTimeout(() => {
+    transcriptionProgress.value = ''
+  }, 2000)
+}
+
+// 处理转录错误消息
+const handleTranscriptionError = (data: any) => {
+  const errorMessage = '转录失败: ' + data.error
+  transcriptionProgress.value = errorMessage
+  isTranscribing.value = false
+  internalError.value = errorMessage // 同时更新错误状态
+  setTimeout(() => {
+    transcriptionProgress.value = ''
+  }, 3000)
+}
+
+
+
 // 监听当前激活的字幕索引变化，自动滚动到对应字幕
 watch(() => videoStore.activeSubtitleIndex, (newIndex) => {
   if (newIndex !== null && autoScrollEnabled.value) {
     nextTick(() => scrollToCurrentSubtitle(newIndex))
+  }
+})
+
+// 注册消息监听器 (监听来自content script的postMessage)
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return
+
+  const message = event.data
+  switch (message.type) {
+    case MessageType.AUDIO_TRANSCRIPTION_COMPLETE:
+      handleTranscriptionComplete(message.data)
+      break
+    case MessageType.AUDIO_TRANSCRIPTION_ERROR:
+      handleTranscriptionError(message.data)
+      break
   }
 })
 </script>
@@ -164,8 +270,8 @@ watch(() => videoStore.activeSubtitleIndex, (newIndex) => {
     </div>
 
     <!-- 错误提示 -->
-    <div v-else-if="error" class="py-6 text-center">
-      <div class="text-destructive mb-2">{{ error }}</div>
+    <div v-else-if="internalError" class="py-6 text-center">
+      <div class="text-destructive mb-2">{{ internalError }}</div>
       <button @click="loadSubtitles" class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
         <ArrowPathIcon class="h-5 w-5" />
       </button>
@@ -208,12 +314,32 @@ watch(() => videoStore.activeSubtitleIndex, (newIndex) => {
       </div>
     </div>
 
-    <!-- Copy button -->
-    <div class="mt-2">
-      <button @click="copySubtitles" class="p-2 rounded-lg hover:bg-accent">
+    <!-- 操作按钮 -->
+    <div class="mt-2 flex items-center gap-2">
+      <!-- 复制按钮 -->
+      <button @click="copySubtitles" class="p-2 rounded-lg hover:bg-accent" title="复制字幕">
         <CheckIcon v-if="copySuccess" class="h-5 w-5 text-green-500" />
         <ClipboardDocumentIcon v-else class="h-5 w-5 text-muted-foreground" />
       </button>
+
+      <!-- 音频转录按钮 (仅Bilibili显示) -->
+      <button
+        v-if="platformType === VideoType.BILIBILI"
+        @click="transcribeAudio"
+        :disabled="isTranscribing"
+        class="p-2 rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        title="转录音频为字幕"
+      >
+        <div v-if="isTranscribing" class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+        <SpeakerWaveIcon v-else class="h-5 w-5 text-muted-foreground" />
+      </button>
     </div>
+
+    <!-- 转录进度提示 -->
+    <div v-if="transcriptionProgress" class="mt-2 text-sm text-muted-foreground">
+      {{ transcriptionProgress }}
+    </div>
+
+
   </div>
 </template> 

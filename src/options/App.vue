@@ -109,6 +109,43 @@ onMounted(() => {
           />
         </div>
 
+        <!-- Whisper API 设置 -->
+        <div>
+          <h2 class="text-xl font-semibold mb-4 text-text-primary">Whisper API 设置</h2>
+          <p class="text-text-secondary mb-4">
+            配置 Whisper API 用于Bilibili音频转录功能。
+          </p>
+
+          <!-- Whisper API Key -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-text-primary mb-2">
+              Whisper API Key
+            </label>
+            <input
+              type="password"
+              v-model="settings.whisperApiKey"
+              placeholder="sk-..."
+              class="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <!-- API 端点 -->
+          <div>
+            <label class="block text-sm font-medium text-text-primary mb-2">
+              API 端点
+            </label>
+            <input
+              type="url"
+              v-model="settings.whisperApiEndpoint"
+              placeholder="https://api.openai.com/v1/audio/transcriptions"
+              class="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <p class="text-xs text-text-secondary mt-1">
+              默认使用 OpenAI 官方端点，也可以使用兼容的第三方服务
+            </p>
+          </div>
+        </div>
+
         <div>
           <h2 class="text-xl font-semibold mb-4 text-text-primary">功能开关</h2>
           <div class="space-y-4">

@@ -7,6 +7,9 @@ export interface UserSettings {
   apiKey: string
   language: string
   theme: 'light' | 'dark' | 'system'
+  // Whisper API 相关设置
+  whisperApiKey: string
+  whisperApiEndpoint: string
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -17,6 +20,9 @@ export const useSettingsStore = defineStore('settings', () => {
     apiKey: '',
     language: 'zh-CN',
     theme: 'light',
+    // Whisper API 默认设置
+    whisperApiKey: '',
+    whisperApiEndpoint: 'https://api.openai.com/v1/audio/transcriptions',
   })
 
   // Flag to prevent update loops

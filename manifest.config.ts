@@ -8,7 +8,8 @@ export default defineManifest({
   permissions: ['sidePanel', 'storage', 'activeTab', 'webNavigation'],
   host_permissions: [
     "https://*.youtube.com/*",
-    "https://*.bilibili.com/*"
+    "https://*.bilibili.com/*",
+    "https://api.openai.com/*"
   ],
   icons: {
     '48': 'public/logo.png',

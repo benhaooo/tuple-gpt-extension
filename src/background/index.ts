@@ -69,12 +69,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       registerTab(tabId);
       sendResponse({ success: true });
       break;
-      
+
     case MessageType.UNREGISTER_TAB:
       unregisterTab(tabId);
       sendResponse({ success: true });
       break;
-      
+
+    case MessageType.TRANSCRIBE_BILIBILI_AUDIO:
+      // 转发音频转录消息到对应的content script
+      sendMessageToTab(tabId, message).then(response => {
+        sendResponse(response);
+      }).catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+      break;
+
     default:
       sendResponse({ success: false, error: 'Unknown message type' });
       break;

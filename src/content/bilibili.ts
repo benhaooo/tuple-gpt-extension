@@ -5,10 +5,18 @@ import {
   MessageType,
   sendMessageToBackground,
   registerMessageListener,
+  type TranscribeBilibiliAudioMessage,
+  type AudioTranscriptionCompleteMessage,
+  type AudioTranscriptionErrorMessage,
 } from '@/utils/messages'
 import { createPinia } from 'pinia'
 import { useVideoStore } from '@/store/videoStore'
 import { createVideoTimeTracker } from '@/utils/videoTimeTracker'
+import {
+  transcribeBilibiliAudio,
+  transcriptionToSubtitles,
+  type TranscriptionResult
+} from '@/utils/audioUtils'
 
 console.log('[Tuple-GPT] Bilibili content script loaded!')
 
@@ -72,6 +80,68 @@ function registerTab() {
     },
   })
 }
+
+// 处理音频转录请求
+async function handleAudioTranscription(data: any) {
+  try {
+    console.log('[Tuple-GPT] 开始处理音频转录请求:', data)
+
+    const transcriptionResult = await transcribeBilibiliAudio({
+      whisperApiKey: data.whisperApiKey,
+      whisperApiEndpoint: data.whisperApiEndpoint
+    })
+
+    console.log('[Tuple-GPT] 转录原始结果:', transcriptionResult)
+
+    const subtitles = transcriptionToSubtitles(transcriptionResult)
+    console.log('[Tuple-GPT] 转换后的字幕:', subtitles)
+
+    // 发送转录完成消息
+    const completeMessage: AudioTranscriptionCompleteMessage = {
+      type: MessageType.AUDIO_TRANSCRIPTION_COMPLETE,
+      data: {
+        transcriptionResult,
+        subtitles
+      }
+    }
+
+    // 发送到所有监听器
+    window.postMessage(completeMessage, '*')
+    console.log('[Tuple-GPT] 音频转录完成，已发送', subtitles.length, '条字幕')
+  } catch (error) {
+    console.error('[Tuple-GPT] 音频转录失败:', error)
+
+    // 发送错误消息
+    const errorMessage: AudioTranscriptionErrorMessage = {
+      type: MessageType.AUDIO_TRANSCRIPTION_ERROR,
+      data: {
+        error: (error as Error).message
+      }
+    }
+
+    // 发送到所有监听器
+    window.postMessage(errorMessage, '*')
+  }
+}
+
+// 监听来自background的消息
+registerMessageListener((message, sender) => {
+  console.log('[Tuple-GPT] Bilibili收到消息:', message.type)
+
+  switch (message.type) {
+    case MessageType.URL_CHANGE_NOTIFICATION:
+      const url = message.data.url
+      if (url.includes('bilibili.com/video')) {
+        console.log('[Tuple-GPT] Received URL change notification for Bilibili:', url)
+        videoStore.setCurrentUrl(url, VideoType.BILIBILI)
+      }
+      break
+
+    case MessageType.TRANSCRIBE_BILIBILI_AUDIO:
+      handleAudioTranscription(message.data)
+      break
+  }
+})
 
 // 等待页面加载完成
 if (document.readyState === 'loading') {

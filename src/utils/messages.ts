@@ -10,6 +10,10 @@ export enum MessageType {
   REGISTER_TAB = 'REGISTER_TAB',
   UNREGISTER_TAB = 'UNREGISTER_TAB',
   URL_CHANGE_NOTIFICATION = 'URL_CHANGE_NOTIFICATION',
+  // 音频转录相关
+  TRANSCRIBE_BILIBILI_AUDIO = 'TRANSCRIBE_BILIBILI_AUDIO',
+  AUDIO_TRANSCRIPTION_COMPLETE = 'AUDIO_TRANSCRIPTION_COMPLETE',
+  AUDIO_TRANSCRIPTION_ERROR = 'AUDIO_TRANSCRIPTION_ERROR',
 }
 
 /**
@@ -41,6 +45,38 @@ export interface UrlChangeNotificationMessage extends Message {
   type: MessageType.URL_CHANGE_NOTIFICATION;
   data: {
     url: string;
+  };
+}
+
+/**
+ * 转录Bilibili音频消息
+ */
+export interface TranscribeBilibiliAudioMessage extends Message {
+  type: MessageType.TRANSCRIBE_BILIBILI_AUDIO;
+  data: {
+    whisperApiKey: string;
+    whisperApiEndpoint?: string;
+  };
+}
+
+/**
+ * 音频转录完成消息
+ */
+export interface AudioTranscriptionCompleteMessage extends Message {
+  type: MessageType.AUDIO_TRANSCRIPTION_COMPLETE;
+  data: {
+    transcriptionResult: any;
+    subtitles: any[];
+  };
+}
+
+/**
+ * 音频转录错误消息
+ */
+export interface AudioTranscriptionErrorMessage extends Message {
+  type: MessageType.AUDIO_TRANSCRIPTION_ERROR;
+  data: {
+    error: string;
   };
 }
 
