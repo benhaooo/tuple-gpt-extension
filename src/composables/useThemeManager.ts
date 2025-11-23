@@ -1,5 +1,5 @@
 import { watch } from 'vue'
-import { useSettingsStore } from '@/store/settingsStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { themes, defaultTheme, ThemeName } from '@/constants/themes'
 
 /**

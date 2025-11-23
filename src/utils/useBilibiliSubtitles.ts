@@ -8,7 +8,7 @@ import {
   getBilibiliVideoInfo,
   getBilibiliSubtitlesByCid
 } from './subtitlesApi'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 
 /**
  * Bilibili字幕Hook

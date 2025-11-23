@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { createSubtitlesHook } from '@/utils/subtitlesFactory'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 import { marked } from 'marked'
 // 导入Heroicons图标
 import { 

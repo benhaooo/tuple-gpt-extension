@@ -38,7 +38,7 @@ import {
   WrenchScrewdriverIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
-import ChatView from './views/ChatView.vue';
+import ChatView from './views/chat/index.vue';
 import PlaceholderView from './views/PlaceholderView.vue';
 import { useThemeManager } from '@/composables/useThemeManager';
 

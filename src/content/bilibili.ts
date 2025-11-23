@@ -10,7 +10,7 @@ import {
   type AudioTranscriptionErrorMessage,
 } from '@/utils/messages'
 import { createPinia } from 'pinia'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 import { createVideoTimeTracker } from '@/utils/videoTimeTracker'
 import {
   transcribeBilibiliAudio,

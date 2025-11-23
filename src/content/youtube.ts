@@ -8,7 +8,7 @@ import {
   sendMessageToBackground 
 } from '@/utils/messages'
 import { createPinia } from 'pinia'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 
 console.log('[Tuple-GPT] YouTube content script loaded!')
 

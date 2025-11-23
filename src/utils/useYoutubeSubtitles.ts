@@ -1,7 +1,7 @@
 import { ref, onUnmounted, watch } from 'vue'
 import { SubtitlesHookResult } from './useSubtitlesBase'
 import { VideoType, SubtitleItem, getYouTubeSubtitles, getVideoId } from './subtitlesApi'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 
 /**
  * YouTube字幕Hook

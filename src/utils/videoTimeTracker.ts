@@ -4,7 +4,7 @@
  */
 
 import { VideoType } from './subtitlesApi'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 
 interface VideoTimeTrackerOptions {
   platformType: VideoType

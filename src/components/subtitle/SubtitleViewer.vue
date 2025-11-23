@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { useVideoStore } from '@/store/videoStore'
-import { useSettingsStore } from '@/store/settingsStore'
+import { useVideoStore } from '@/stores/videoStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import {
   ClipboardDocumentIcon,
   ArrowPathIcon,

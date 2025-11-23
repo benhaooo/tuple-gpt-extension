@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { createSubtitlesHook } from '@/utils/subtitlesFactory'
-import { useVideoStore } from '@/store/videoStore'
+import { useVideoStore } from '@/stores/videoStore'
 // 导入组件
 import SubtitleViewer from '@/components/subtitle/SubtitleViewer.vue'
 import SummaryViewer from '@/components/summary/SummaryViewer.vue'

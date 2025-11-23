@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useSettingsStore } from '@/store/settingsStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { storeToRefs } from 'pinia'
 import { useThemeManager } from '@/composables/useThemeManager'
 import { themeNames, type ThemeName } from '@/constants/themes'
 import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@heroicons/vue/24/solid'
 import type { Component } from 'vue';
+import Service from './service/index.vue'
 
 const settingsStore = useSettingsStore()
 // 使用 storeToRefs 来保持响应性
@@ -27,11 +28,6 @@ const themeOptions = [
   { label: '跟随系统', value: 'system' }
 ]
 
-// 语言选项
-const languageOptions = [
-  { label: '简体中文', value: 'zh-CN' },
-  { label: '英文', value: 'en-US' }
-]
 
 // 保存消息状态
 const saveMessage = ref('')
@@ -50,17 +46,11 @@ const handleSave = () => {
   // 我们只需要显示一个成功消息
   showSaveMessage('设置已保存')
 }
-
-// 组件挂载时，Pinia store 会自动加载设置
-onMounted(() => {
-  // 如果需要，可以在这里强制重新加载，但通常store的初始化就够了
-  // settingsStore.loadSettings();
-})
 </script>
 
 <template>
   <div class="p-6 min-h-screen bg-background text-text-primary transition-colors duration-300">
-    <div class="max-w-lg mx-auto bg-surface p-8 rounded-xl shadow-lg">
+    <div class=" mx-auto bg-surface p-8 rounded-xl shadow-lg">
       <h1 class="text-3xl font-bold mb-6 text-text-primary border-b border-border pb-4">
         Tuple-GPT 设置
       </h1>
@@ -96,19 +86,7 @@ onMounted(() => {
           </div>
           </div>
 
-        <div>
-          <h2 class="text-xl font-semibold mb-4 text-text-primary">API Key</h2>
-          <p class="text-text-secondary mb-4">
-            请输入您的 OpenAI API Key。此密钥将安全地存储在本地。
-          </p>
-              <input
-                type="password"
-                v-model="settings.apiKey"
-            placeholder="sk-..."
-            class="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
+        
         <!-- Whisper API 设置 -->
         <div>
           <h2 class="text-xl font-semibold mb-4 text-text-primary">Whisper API 设置</h2>
@@ -214,6 +192,8 @@ onMounted(() => {
           保存设置
         </button>
       </div>
+
+      <Service />
     </div>
   </div>
 </template> 
