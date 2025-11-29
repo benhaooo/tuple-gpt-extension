@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { createSubtitlesHook } from '@/utils/subtitlesFactory'
 import { useVideoStore } from '@/stores/videoStore'
 import { marked } from 'marked'
 // 导入Heroicons图标
-import { 
-  ClipboardDocumentIcon, 
-  ArrowPathIcon, 
-  Bars3Icon, 
+import {
+  ClipboardDocumentIcon,
+  ArrowPathIcon,
+  Bars3Icon,
   DocumentTextIcon,
   Cog6ToothIcon,
   ChatBubbleLeftIcon,
@@ -29,17 +28,55 @@ const props = defineProps<{
 const activeTab = ref('subtitles')
 const bilingualMode = ref(false)
 
-// 使用字幕工厂函数，只获取必要的字幕数据
-const {
-  videoTitle,
-  subtitleInfo,
-  availableLanguages,
-  subtitlesContent,
-  isLoading,
-  error,
-  initialize,
-  cleanup
-} = createSubtitlesHook(props.platformType)
+// 创建并初始化字幕管理器将在下面的onMounted中处理
+
+// 从videoStore获取所需数据
+const videoTitle = computed(() => videoStore.videoTitle)
+const subtitleInfo = computed(() => videoStore.currentSubtitleInfo)
+const availableLanguages = computed(() => videoStore.availableLanguages)
+const subtitlesContent = computed(() => videoStore.subtitlesContent)
+const isLoading = computed(() => videoStore.isLoading)
+const error = computed(() => videoStore.error)
+
+// 处理语言选择变化
+const handleLanguageChange = async (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const selectedLanguage = target.value
+
+  if (!selectedLanguage || !availableLanguages.value.length) return
+
+  const selectedLanguageInfo = availableLanguages.value.find(lang => lang.lan === selectedLanguage)
+  if (!selectedLanguageInfo) return
+
+  try {
+    await videoStore.loadSubtitlesByLanguage(selectedLanguageInfo)
+  } catch (err) {
+    console.error('[Tuple-GPT] 语言切换失败:', err)
+  }
+}
+
+// 切换双语模式
+const toggleBilingual = () => {
+  bilingualMode.value = !bilingualMode.value
+  console.log('[Tuple-GPT] 双语模式切换:', bilingualMode.value)
+}
+
+// 切换标签页
+const selectTab = (tab: string) => {
+  activeTab.value = tab
+}
+
+// 刷新字幕
+const refreshSubtitles = async () => {
+  await videoStore.initializeSubtitles(props.platformType)
+}
+
+// 跳转到指定时间
+const jumpToTime = (time?: string) => {
+  if (time) {
+    videoStore.jumpToTimeByString(time)
+  }
+}
 
 // 计算属性：获取字幕列表
 const subtitles = computed(() => subtitleInfo.value?.subtitles ?? [])
@@ -103,18 +140,7 @@ const platformName = () => {
   }
 }
 
-// UI交互处理函数（仅UI状态更新，无实际功能）
-const selectTab = (tab: 'subtitles' | 'summary') => {
-  activeTab.value = tab
-}
-
-const toggleBilingual = () => {
-  bilingualMode.value = !bilingualMode.value
-}
-
-const jumpToTime = () => {
-  // 空函数，仅用于UI展示
-}
+// UI交互处理函数已经在上面定义了
 
 const summarizeVideo = async () => {
   try {
@@ -171,22 +197,16 @@ ${subtitlesContent.value}
   }
 }
 
-// 加载字幕的核心功能
-const loadSubtitles = async () => {
-  await initialize()
-}
-
 // 平台变化时重新加载字幕
 watch(() => props.platformType, async (newType, oldType) => {
   if (newType !== oldType) {
-    cleanup()
-    await initialize()
+    await videoStore.initializeSubtitles(newType)
   }
 })
 
 // 组件挂载时初始化
-onMounted(() => {
-  loadSubtitles()
+onMounted(async () => {
+  await videoStore.initializeSubtitles(props.platformType)
   console.log('[Tuple-GPT] SiderComponent 已挂载，当前 URL:', videoStore.currentUrl)
   console.log('[Tuple-GPT] 当前平台:', videoStore.platformType === VideoType.YOUTUBE ? 'YouTube' : 'Bilibili')
 })
@@ -229,15 +249,35 @@ onMounted(() => {
 
     <!-- 主体内容 -->
     <div v-if="activeTab === 'subtitles'" class="px-4 pb-4">
-      <!-- 字幕标题和双语切换 -->
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-base font-medium">{{ platformName() }}字幕</h2>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">双语</span>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" v-model="bilingualMode" class="sr-only peer" @change="toggleBilingual">
-            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
+      <!-- 字幕标题和控制选项 -->
+      <div class="mb-4">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-base font-medium">{{ platformName() }}字幕</h2>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">双语</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="bilingualMode" class="sr-only peer" @change="toggleBilingual">
+              <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 语言选择器 -->
+        <div v-if="availableLanguages && availableLanguages.length > 1" class="mb-3">
+          <select
+            @change="handleLanguageChange"
+            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">选择字幕语言</option>
+            <option
+              v-for="lang in availableLanguages"
+              :key="lang.lan"
+              :value="lang.lan"
+              :selected="subtitleInfo?.lang === lang.lan"
+            >
+              {{ lang.lan_doc }}
+            </option>
+          </select>
         </div>
       </div>
 
@@ -249,7 +289,7 @@ onMounted(() => {
       <!-- 错误提示 -->
       <div v-else-if="error" class="py-6 text-center">
         <div class="text-red-500 mb-2">{{ error }}</div>
-        <button @click="loadSubtitles" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center">
+        <button @click="refreshSubtitles" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center">
           <ArrowPathIcon class="h-5 w-5" />
         </button>
       </div>
@@ -257,7 +297,7 @@ onMounted(() => {
       <!-- 无字幕提示 -->
       <div v-else-if="subtitles.length === 0" class="py-6 text-center">
         <div class="text-gray-500 mb-2">未找到字幕</div>
-        <button @click="loadSubtitles" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center">
+        <button @click="refreshSubtitles" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center">
           <ArrowPathIcon class="h-5 w-5" />
         </button>
       </div>

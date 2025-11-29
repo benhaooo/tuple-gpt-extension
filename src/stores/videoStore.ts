@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { VideoType, SubtitleItem, SubtitleLanguageInfo, SubtitleInfo, getSubtitlesByUrl } from '@/utils/subtitlesApi'
+import { BaseSubtitleManager } from '@/managers/BaseSubtitleManager'
 
 interface VideoState {
   currentUrl: string
@@ -9,7 +10,11 @@ interface VideoState {
   activeSubtitleIndex: number | null
   subtitles: SubtitleItem[] // 新增字幕数据存储
   currentSubtitleInfo: SubtitleInfo | null // 当前字幕信息
-  // 可以根据需要添加更多状态，如 videoId 等
+  availableLanguages: SubtitleLanguageInfo[] // 可用语言列表
+  videoTitle: string // 视频标题
+  isLoading: boolean // 加载状态
+  error: string | null // 错误信息
+  subtitleManager: BaseSubtitleManager | null // 字幕管理器实例
 }
 
 // 创建初始状态工厂函数，方便重用
@@ -20,7 +25,12 @@ const getInitialState = (): VideoState => ({
   autoScroll: true,
   activeSubtitleIndex: null,
   subtitles: [],
-  currentSubtitleInfo: null
+  currentSubtitleInfo: null,
+  availableLanguages: [],
+  videoTitle: '',
+  isLoading: false,
+  error: null,
+  subtitleManager: null
 })
 
 export const useVideoStore = defineStore('video', {
@@ -34,8 +44,37 @@ export const useVideoStore = defineStore('video', {
      */
     setCurrentUrl(url: string, platformType: VideoType) {
       this.currentUrl = url
+      const previousPlatformType = this.platformType
       this.platformType = platformType
       console.log(`[Tuple-GPT] Video store URL updated: ${url} (${platformType})`)
+
+      // 如果平台类型发生变化，自动切换字幕管理器
+      if (previousPlatformType !== platformType) {
+        this.switchSubtitleManager(platformType)
+      }
+    },
+
+    /**
+     * 根据平台类型切换字幕管理器
+     * @param platformType 平台类型
+     */
+    async switchSubtitleManager(platformType: VideoType) {
+      // 清理旧的管理器
+      if (this.subtitleManager) {
+        this.subtitleManager.cleanup()
+        this.subtitleManager = null
+      }
+
+      // 创建新的管理器
+      const { createSubtitleManager } = await import('@/managers/SubtitleManagerFactory')
+      const newManager = createSubtitleManager(platformType, this)
+
+      if (newManager) {
+        this.subtitleManager = newManager
+        await this.subtitleManager.initialize()
+        this.videoTitle = this.subtitleManager.getVideoTitle()
+        this.availableLanguages = this.subtitleManager.getAvailableLanguages()
+      }
     },
 
     /**
@@ -186,15 +225,67 @@ export const useVideoStore = defineStore('video', {
     },
 
     /**
+     * 设置字幕管理器实例
+     * @param manager 字幕管理器实例
+     */
+    setSubtitleManager(manager: BaseSubtitleManager | null) {
+      if (this.subtitleManager) {
+        this.subtitleManager.cleanup()
+      }
+      this.subtitleManager = manager
+    },
+
+    /**
+     * 初始化字幕功能
+     * @param platformType 平台类型
+     */
+    async initializeSubtitles(platformType: VideoType) {
+      if (!this.subtitleManager || this.platformType !== platformType) {
+        await this.switchSubtitleManager(platformType)
+      }
+    },
+
+  
+    /**
+     * 设置可用语言列表
+     * @param languages 语言列表
+     */
+    setAvailableLanguages(languages: SubtitleLanguageInfo[]) {
+      this.availableLanguages = languages
+    },
+
+    /**
+     * 设置加载状态
+     * @param loading 是否加载中
+     */
+    setLoading(loading: boolean) {
+      this.isLoading = loading
+    },
+
+    /**
+     * 设置错误信息
+     * @param error 错误信息
+     */
+    setError(error: string | null) {
+      this.error = error
+    },
+
+    /**
+     * 设置视频标题
+     * @param title 视频标题
+     */
+    setVideoTitle(title: string) {
+      this.videoTitle = title
+    },
+
+    /**
      * 重置状态
      */
     reset() {
-      this.currentUrl = window.location.href
-      this.platformType = null
-      this.currentTime = 0
-      this.activeSubtitleIndex = null
-      this.subtitles = []
-      this.currentSubtitleInfo = null
+      if (this.subtitleManager) {
+        this.subtitleManager.cleanup()
+      }
+      Object.assign(this, getInitialState())
     }
   },
 
@@ -205,26 +296,33 @@ export const useVideoStore = defineStore('video', {
      */
     videoId: (state) => {
       if (!state.currentUrl) return null
-      
+
       try {
         const url = new URL(state.currentUrl)
-        
+
         // B站视频 ID 解析
         if (state.platformType === VideoType.BILIBILI) {
           const videoIdMatch = url.pathname.match(/\/video\/(BV[\w]+)/)
           return videoIdMatch ? videoIdMatch[1] : null
         }
-        
+
         // YouTube 视频 ID 解析
         if (state.platformType === VideoType.YOUTUBE) {
           return url.searchParams.get('v')
         }
-        
+
         return null
       } catch (e) {
         console.error('[Tuple-GPT] Error parsing video ID:', e)
         return null
       }
+    },
+
+    /**
+     * 获取字幕内容（拼接后的完整文本）
+     */
+    subtitlesContent: (state) => {
+      return state.subtitles.map(item => item.text).join(' ') ?? ''
     }
   }
 }) 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { createSubtitlesHook } from '@/utils/subtitlesFactory'
 import { useVideoStore } from '@/stores/videoStore'
 // 导入组件
 import SubtitleViewer from '@/components/subtitle/SubtitleViewer.vue'
@@ -31,17 +30,13 @@ const selectedLanguage = ref('')
 const showLanguageDropdown = ref(false)
 const isLanguageLoading = ref(false)
 
-// 使用字幕工厂函数，只获取必要的字幕数据
-const {
-  videoTitle,
-  subtitleInfo,
-  availableLanguages,
-  subtitlesContent,
-  isLoading,
-  error,
-  initialize,
-  cleanup
-} = createSubtitlesHook(props.platformType)
+// 从videoStore获取所需数据
+const videoTitle = computed(() => videoStore.videoTitle)
+const subtitleInfo = computed(() => videoStore.currentSubtitleInfo)
+const availableLanguages = computed(() => videoStore.availableLanguages)
+const subtitlesContent = computed(() => videoStore.subtitlesContent)
+const isLoading = computed(() => videoStore.isLoading)
+const error = computed(() => videoStore.error)
 
 // 计算属性：获取字幕列表
 const subtitles = computed(() => subtitleInfo.value?.subtitles ?? [])
@@ -52,6 +47,11 @@ const currentLanguage = computed(() => {
     return availableLanguages.value.find(lang => lang.lan === selectedLanguage.value)
   }
   return availableLanguages.value[0]
+})
+
+// 创建并初始化字幕管理器
+onMounted(async () => {
+  await videoStore.initializeSubtitles(props.platformType)
 })
 
 // UI交互处理函数（仅UI状态更新，无实际功能）
@@ -106,26 +106,17 @@ const closeLanguageDropdown = () => {
   showLanguageDropdown.value = false
 }
 
-// 加载字幕的核心功能
-const loadSubtitles = async () => {
-  await initialize()
-  // 加载完字幕后更新到store中
-  if (subtitles.value.length > 0) {
-    videoStore.updateSubtitles(subtitles.value)
-  }
-}
-
 // 平台变化时重新加载字幕
 watch(() => props.platformType, async (newType, oldType) => {
   if (newType !== oldType) {
-    cleanup()
-    await initialize()
-    // 重新加载后更新到store中
-    if (subtitles.value.length > 0) {
-      videoStore.updateSubtitles(subtitles.value)
-    }
+    await videoStore.initializeSubtitles(newType)
   }
 })
+
+// 刷新字幕函数
+const loadSubtitles = async () => {
+  await videoStore.initializeSubtitles(props.platformType)
+}
 
 // 组件挂载时初始化
 const componentRef = ref<HTMLElement | null>(null)
