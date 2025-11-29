@@ -32,13 +32,17 @@ const bilingualMode = ref(false)
 // 使用字幕工厂函数，只获取必要的字幕数据
 const {
   videoTitle,
-  subtitles,
+  subtitleInfo,
+  availableLanguages,
   subtitlesContent,
   isLoading,
   error,
   initialize,
   cleanup
 } = createSubtitlesHook(props.platformType)
+
+// 计算属性：获取字幕列表
+const subtitles = computed(() => subtitleInfo.value?.subtitles ?? [])
 
 // 总结状态
 const summaryLoading = ref(false)

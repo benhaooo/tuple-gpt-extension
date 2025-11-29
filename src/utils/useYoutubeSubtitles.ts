@@ -1,6 +1,6 @@
-import { ref, onUnmounted, watch } from 'vue'
+import { ref, onUnmounted, watch, computed } from 'vue'
 import { SubtitlesHookResult } from './useSubtitlesBase'
-import { VideoType, SubtitleItem, getYouTubeSubtitles, getVideoId } from './subtitlesApi'
+import { VideoType, SubtitleInfo, SubtitleLanguageInfo, getYouTubeSubtitles, getVideoId } from './subtitlesApi'
 import { useVideoStore } from '@/stores/videoStore'
 
 /**
@@ -11,10 +11,16 @@ export function useYoutubeSubtitles(): SubtitlesHookResult {
   const videoId = ref<string | null>(null)
   const videoTitle = ref<string>('')
 
-  const subtitles = ref<SubtitleItem[]>([])
+  const subtitleInfo = ref<SubtitleInfo | null>(null)
+  const availableLanguages = ref<SubtitleLanguageInfo[]>([])
   const isLoading = ref<boolean>(false)
   const error = ref<string | null>(null)
-  
+
+  // 计算属性：将所有字幕文本连接成一篇文章
+  const subtitlesContent = computed(() => {
+    return subtitleInfo.value?.subtitles.map(item => item.text).join(' ') ?? ''
+  })
+
   // 使用 Pinia store
   const videoStore = useVideoStore()
 
@@ -25,7 +31,10 @@ export function useYoutubeSubtitles(): SubtitlesHookResult {
       if (subs.length === 0) {
         throw new Error('无法获取字幕或该视频没有字幕')
       }
-      subtitles.value = subs
+      subtitleInfo.value = {
+        lang: 'auto',
+        subtitles: subs
+      }
     } catch (err) {
       throw err
     }
@@ -50,13 +59,14 @@ export function useYoutubeSubtitles(): SubtitlesHookResult {
   }
 
   const cleanup = (): void => {
-    subtitles.value = []
+    subtitleInfo.value = null
+    availableLanguages.value = []
     videoId.value = null
     videoTitle.value = ''
     error.value = null
     isLoading.value = false
   }
-  
+
   watch(() => videoStore.currentUrl, (newUrl, oldUrl) => {
     if (newUrl !== oldUrl) {
       initialize()
@@ -70,7 +80,9 @@ export function useYoutubeSubtitles(): SubtitlesHookResult {
 
   return {
     videoTitle,
-    subtitles,
+    subtitleInfo,
+    availableLanguages,
+    subtitlesContent,
     isLoading,
     error,
     initialize,

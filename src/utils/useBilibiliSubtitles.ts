@@ -2,7 +2,8 @@ import { ref, onUnmounted, watch, computed } from 'vue'
 import { SubtitlesHookResult } from './useSubtitlesBase'
 import {
   VideoType,
-  SubtitleItem,
+  SubtitleInfo,
+  SubtitleLanguageInfo,
   getVideoId,
   VideoInfo,
   getBilibiliVideoInfo,
@@ -19,13 +20,14 @@ export function useBilibiliSubtitles(): SubtitlesHookResult {
   const videoTitle = ref<string>('')
   const videoInfo = ref<VideoInfo | null>(null)
 
-  const subtitles = ref<SubtitleItem[]>([])
+  const subtitleInfo = ref<SubtitleInfo | null>(null)
+  const availableLanguages = ref<SubtitleLanguageInfo[]>([])
   const isLoading = ref<boolean>(false)
   const error = ref<string | null>(null)
-  
+
   // 计算属性：将所有字幕文本连接成一篇文章
   const subtitlesContent = computed(() => {
-    return subtitles.value.map(item => item.text).join(' ')
+    return subtitleInfo.value?.subtitles.map(item => item.text).join(' ') ?? ''
   })
   
   // 使用 Pinia store
@@ -51,11 +53,12 @@ export function useBilibiliSubtitles(): SubtitlesHookResult {
       throw new Error('视频信息未加载')
     }
     try {
-      const subs = await getBilibiliSubtitlesByCid(videoInfo.value)
-      if (subs.length === 0) {
+      const result = await getBilibiliSubtitlesByCid(videoInfo.value)
+      subtitleInfo.value = result.subtitleInfo
+      availableLanguages.value = result.availableLanguages
+      if (result.subtitleInfo.subtitles.length === 0) {
         throw new Error('无法获取字幕或该视频没有字幕')
       }
-      subtitles.value = subs
     } catch (err) {
       throw err
     }
@@ -80,7 +83,8 @@ export function useBilibiliSubtitles(): SubtitlesHookResult {
   }
 
   const cleanup = (): void => {
-    subtitles.value = []
+    subtitleInfo.value = null
+    availableLanguages.value = []
     videoInfo.value = null
     videoId.value = null
     videoTitle.value = ''
@@ -100,7 +104,8 @@ export function useBilibiliSubtitles(): SubtitlesHookResult {
 
   return {
     videoTitle,
-    subtitles,
+    subtitleInfo,
+    availableLanguages,
     subtitlesContent,
     isLoading,
     error,

@@ -12,6 +12,19 @@ export interface SubtitleItem {
   translatedText?: string; // 翻译后的字幕文本 (可选，用于双语字幕)
 }
 
+// 字幕语言信息接口
+export interface SubtitleLanguageInfo {
+  lan: string; // 语言代码
+  lan_doc: string; // 语言描述
+  subtitle_url?: string; // 字幕文件URL
+}
+
+// 带语言信息的字幕接口
+export interface SubtitleInfo {
+  lang: string; // 当前字幕语言代码
+  subtitles: SubtitleItem[]; // 字幕列表
+}
+
 // 视频类型枚举
 export enum VideoType {
   YOUTUBE = 'youtube',
@@ -56,7 +69,7 @@ export function getVideoId(platform: VideoType): string | null {
  * @param seconds 秒数
  * @returns 格式化后的时间字符串
  */
-function formatTime(seconds: number): string {
+export function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
@@ -250,7 +263,7 @@ export async function getBilibiliVideoInfo(bvid: string): Promise<VideoInfo> {
     
     const data = viewData.data;
     const aid = data.aid;
-    const pages = data.pages as any[];
+    const pages = data.pages;
     const author = data.owner?.name;
     const ctime = data.ctime;
     const title = data.title;
@@ -258,7 +271,7 @@ export async function getBilibiliVideoInfo(bvid: string): Promise<VideoInfo> {
     // 根据URL的'p'参数确定当前分p
     const urlSearchParams = new URLSearchParams(window.location.search);
     const p = parseInt(urlSearchParams.get('p') || '1');
-    const currentPageInfo = pages.find(page => page.page === p) || pages[0];
+    const currentPageInfo = pages.find(item => item.page === p) || pages[0];
     const cid = currentPageInfo ? currentPageInfo.cid : data.cid;
 
     if (!cid) {
@@ -284,45 +297,56 @@ export async function getBilibiliVideoInfo(bvid: string): Promise<VideoInfo> {
 /**
  * 获取B站特定分P的字幕
  * @param videoInfo 视频信息
- * @returns 字幕数组
+ * @returns 字幕信息和可用语言列表
  */
-export async function getBilibiliSubtitlesByCid(videoInfo: VideoInfo): Promise<SubtitleItem[]> {
+export async function getBilibiliSubtitlesByCid(videoInfo: VideoInfo): Promise<{
+  subtitleInfo: SubtitleInfo;
+  availableLanguages: SubtitleLanguageInfo[];
+}> {
   try {
     // 使用aid和cid获取字幕列表
     const subtitleListResponse = await fetch(
-      `https://api.bilibili.com/x/player/wbi/v2?aid=${videoInfo.aid}&cid=${videoInfo.cid}`, 
+      `https://api.bilibili.com/x/player/wbi/v2?aid=${videoInfo.aid}&cid=${videoInfo.cid}`,
       { credentials: 'include' }
     );
     const subtitleListData = await subtitleListResponse.json();
-    
+
     if (subtitleListData.code !== 0) {
       throw new Error(`获取字幕列表失败: ${subtitleListData.message}`);
     }
-    
+
     const subtitlesInfo = subtitleListData.data?.subtitle?.subtitles;
     if (!subtitlesInfo || subtitlesInfo.length === 0) {
       throw new Error('该视频没有字幕');
     }
+
+    // 提取所有可用语言
+    const availableLanguages: SubtitleLanguageInfo[] = subtitlesInfo.map((item: any) => ({
+      lan: item.lan,
+      lan_doc: item.lan_doc,
+      subtitle_url: item.subtitle_url
+    }));
 
     // 过滤掉没有URL的字幕项
     const validSubtitles = subtitlesInfo.filter((item: any) => item.subtitle_url);
     if (validSubtitles.length === 0) {
       throw new Error('未找到有效字幕');
     }
-    
-    // 获取第一个可用字幕的URL
-    let firstSubtitleUrl = validSubtitles[0].subtitle_url;
+
+    // 获取第一个可用字幕
+    const firstSubtitle = validSubtitles[0];
+    let firstSubtitleUrl = firstSubtitle.subtitle_url;
     if (firstSubtitleUrl.startsWith('//')) {
       firstSubtitleUrl = 'https:' + firstSubtitleUrl;
     }
     if (firstSubtitleUrl.startsWith('http://')) {
       firstSubtitleUrl = firstSubtitleUrl.replace('http://', 'https://');
     }
-    
+
     // 获取字幕内容
     const subtitleResponse = await fetch(firstSubtitleUrl);
     const subtitleData = await subtitleResponse.json();
-    
+
     if (!subtitleData.body) {
       throw new Error('字幕内容为空');
     }
@@ -334,8 +358,14 @@ export async function getBilibiliSubtitlesByCid(videoInfo: VideoInfo): Promise<S
       endTime: item.to * 1000,
       text: item.content
     }));
-    
-    return subtitles;
+
+    return {
+      subtitleInfo: {
+        lang: firstSubtitle.lan,
+        subtitles
+      },
+      availableLanguages
+    };
   } catch (error) {
     console.error('获取Bilibili字幕内容失败:', error);
     throw error; // 抛出错误让上层Hook处理
@@ -373,7 +403,58 @@ export async function getBilibiliSubtitles(bvid: string): Promise<SubtitleItem[]
   if (!videoInfo) {
     return [];
   }
-  return await getBilibiliSubtitlesByCid(videoInfo);
+  const result = await getBilibiliSubtitlesByCid(videoInfo);
+  return result.subtitleInfo.subtitles;
+}
+
+/**
+ * 根据字幕URL获取字幕信息
+ * @param subtitleUrl 字幕文件URL
+ * @param languageCode 语言代码
+ * @returns 字幕信息Promise
+ */
+export async function getSubtitlesByUrl(
+  subtitleUrl: string,
+  languageCode: string
+): Promise<SubtitleInfo> {
+  try {
+    // 处理URL格式
+    let url = subtitleUrl
+    if (url.startsWith('//')) {
+      url = 'https:' + url
+    }
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://')
+    }
+
+    // 获取字幕内容
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch subtitles: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    if (!data.body) {
+      throw new Error('字幕内容为空')
+    }
+
+    // 转换为统一的字幕格式
+    const subtitles: SubtitleItem[] = data.body.map((item: any) => ({
+      time: formatTime(item.from),
+      startTime: item.from * 1000,
+      endTime: item.to * 1000,
+      text: item.content
+    }))
+
+    return {
+      lang: languageCode,
+      subtitles
+    }
+  } catch (error) {
+    console.error('获取字幕内容失败:', error)
+    throw new Error(`获取字幕失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
 }
 
 /**

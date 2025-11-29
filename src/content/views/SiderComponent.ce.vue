@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { createSubtitlesHook } from '@/utils/subtitlesFactory'
 import { useVideoStore } from '@/stores/videoStore'
@@ -7,12 +7,13 @@ import { useVideoStore } from '@/stores/videoStore'
 import SubtitleViewer from '@/components/subtitle/SubtitleViewer.vue'
 import SummaryViewer from '@/components/summary/SummaryViewer.vue'
 // 导入Heroicons图标
-import { 
-  Bars3Icon, 
+import {
+  Bars3Icon,
   DocumentTextIcon,
   Cog6ToothIcon,
   ChatBubbleLeftIcon,
-  DocumentChartBarIcon
+  DocumentChartBarIcon,
+  ChevronDownIcon
 } from '@heroicons/vue/24/outline'
 import { useThemeManager } from '@/composables/useThemeManager'
 
@@ -26,17 +27,32 @@ const props = defineProps<{
 
 // 视图状态
 const activeTab = ref('subtitles')
+const selectedLanguage = ref('')
+const showLanguageDropdown = ref(false)
+const isLanguageLoading = ref(false)
 
 // 使用字幕工厂函数，只获取必要的字幕数据
 const {
   videoTitle,
-  subtitles,
+  subtitleInfo,
+  availableLanguages,
   subtitlesContent,
   isLoading,
   error,
   initialize,
   cleanup
 } = createSubtitlesHook(props.platformType)
+
+// 计算属性：获取字幕列表
+const subtitles = computed(() => subtitleInfo.value?.subtitles ?? [])
+
+// 计算属性：获取当前选择的语言信息
+const currentLanguage = computed(() => {
+  if (selectedLanguage.value) {
+    return availableLanguages.value.find(lang => lang.lan === selectedLanguage.value)
+  }
+  return availableLanguages.value[0]
+})
 
 // UI交互处理函数（仅UI状态更新，无实际功能）
 const selectTab = (tab: 'subtitles' | 'summary') => {
@@ -54,6 +70,40 @@ const jumpToTime = (timeStr: string) => {
   if (!timeStr) return
   // 使用store中的方法直接跳转
   videoStore.jumpToTimeByString(timeStr)
+}
+
+// 语言选择处理函数
+const selectLanguage = async (language: any) => {
+  if (!language.subtitle_url) {
+    console.warn('该语言没有字幕URL:', language)
+    showLanguageDropdown.value = false
+    return
+  }
+
+  selectedLanguage.value = language.lan
+  showLanguageDropdown.value = false
+  isLanguageLoading.value = true
+
+  try {
+    // 使用store的新方法加载字幕
+    await videoStore.loadSubtitlesByLanguage(language)
+    console.log('成功切换到语言:', language.lan_doc)
+  } catch (error) {
+    console.error('切换语言失败:', error)
+    // 可以在这里显示错误提示
+  } finally {
+    isLanguageLoading.value = false
+  }
+}
+
+// 切换下拉框显示状态
+const toggleLanguageDropdown = () => {
+  showLanguageDropdown.value = !showLanguageDropdown.value
+}
+
+// 关闭下拉框
+const closeLanguageDropdown = () => {
+  showLanguageDropdown.value = false
 }
 
 // 加载字幕的核心功能
@@ -82,9 +132,6 @@ const componentRef = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   loadSubtitles()
-  console.log('[Tuple-GPT] SiderComponent 已挂载，当前 URL:', videoStore.currentUrl)
-  console.log('[Tuple-GPT] 当前平台:', videoStore.platformType === VideoType.YOUTUBE ? 'YouTube' : 'Bilibili')
-
   if (componentRef.value) {
     const rootNode = componentRef.value.getRootNode()
     if (rootNode instanceof ShadowRoot) {
@@ -93,9 +140,17 @@ onMounted(() => {
       useThemeManager(() => hostElement)
     }
   }
+
+  // 添加全局点击事件监听器来关闭下拉框
+  document.addEventListener('click', closeLanguageDropdown)
 })
 
-// 总结视频功能
+// 组件卸载时清理事件监听器
+onUnmounted(() => {
+  document.removeEventListener('click', closeLanguageDropdown)
+})
+
+// 总��视频功能
 const summarizeVideo = () => {
   // 切换到总结选项卡
   activeTab.value = 'summary'
@@ -132,7 +187,40 @@ const summarizeVideo = () => {
           </button>
         </div>
 
-        <span class="text-xs font-medium text-muted-foreground">{{ props.platformType === VideoType.YOUTUBE ? 'YT' : props.platformType === VideoType.BILIBILI ? 'BL' : '?' }}</span>
+        <!-- Language Selection Dropdown -->
+        <div class="relative">
+          <button
+            @click.stop="toggleLanguageDropdown"
+            :disabled="isLanguageLoading"
+            class="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="isLanguageLoading" class="animate-pulse">加载中...</span>
+            <span v-else-if="currentLanguage">{{ currentLanguage.lan_doc?.slice(0, 8) || '语言' }}</span>
+            <span v-else>语言</span>
+            <ChevronDownIcon v-if="!isLanguageLoading" class="h-3 w-3" />
+          </button>
+
+          <!-- 下拉框 -->
+          <div
+            v-if="showLanguageDropdown && availableLanguages.length > 0"
+            class="absolute top-full right-0 mt-1 w-32 bg-background border border-border rounded-md shadow-lg z-50"
+            @click.stop
+          >
+            <div class="py-1 max-h-48 overflow-y-auto">
+              <button
+                v-for="language in availableLanguages"
+                :key="language.lan"
+                @click="selectLanguage(language)"
+                class="w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors"
+                :class="{
+                  'bg-accent text-accent-foreground': selectedLanguage === language.lan
+                }"
+              >
+                {{ language.lan_doc }}
+              </button>
+            </div>
+          </div>
+        </div>
         <button class="p-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" @click="openSettings">
           <Cog6ToothIcon class="h-5 w-5" />
         </button>

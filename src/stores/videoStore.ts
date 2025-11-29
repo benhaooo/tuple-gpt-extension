@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { VideoType, SubtitleItem } from '@/utils/subtitlesApi'
+import { VideoType, SubtitleItem, SubtitleLanguageInfo, SubtitleInfo, getSubtitlesByUrl } from '@/utils/subtitlesApi'
 
 interface VideoState {
   currentUrl: string
@@ -8,6 +8,7 @@ interface VideoState {
   autoScroll: boolean
   activeSubtitleIndex: number | null
   subtitles: SubtitleItem[] // 新增字幕数据存储
+  currentSubtitleInfo: SubtitleInfo | null // 当前字幕信息
   // 可以根据需要添加更多状态，如 videoId 等
 }
 
@@ -18,7 +19,8 @@ const getInitialState = (): VideoState => ({
   currentTime: 0,
   autoScroll: true,
   activeSubtitleIndex: null,
-  subtitles: []
+  subtitles: [],
+  currentSubtitleInfo: null
 })
 
 export const useVideoStore = defineStore('video', {
@@ -76,6 +78,16 @@ export const useVideoStore = defineStore('video', {
      */
     updateSubtitles(subtitles: SubtitleItem[]) {
       this.subtitles = subtitles
+    },
+
+    /**
+     * 更新当前字幕信息
+     * @param subtitleInfo 新的字幕信息
+     */
+    updateCurrentSubtitleInfo(subtitleInfo: SubtitleInfo) {
+      this.currentSubtitleInfo = subtitleInfo
+      this.subtitles = subtitleInfo.subtitles
+      this.activeSubtitleIndex = null
     },
 
     /**
@@ -149,6 +161,31 @@ export const useVideoStore = defineStore('video', {
     },
 
     /**
+     * 根据语言信息加载字幕
+     * @param language 语言信息，包含subtitle_url
+     */
+    async loadSubtitlesByLanguage(language: SubtitleLanguageInfo) {
+      if (!language.subtitle_url) {
+        console.error('语言信息中没有字幕URL:', language)
+        throw new Error('该语言没有可用的字幕URL')
+      }
+
+      try {
+        console.log(`[Tuple-GPT] 正在加载 ${language.lan_doc} 字幕...`)
+        const subtitleInfo = await getSubtitlesByUrl(language.subtitle_url, language.lan)
+
+        // 更新store中的字幕信息
+        this.updateCurrentSubtitleInfo(subtitleInfo)
+
+        console.log(`[Tuple-GPT] 字幕加载完成: ${language.lan_doc}, 共 ${subtitleInfo.subtitles.length} 条字幕`)
+        return subtitleInfo
+      } catch (error) {
+        console.error(`[Tuple-GPT] 加载字幕失败:`, error)
+        throw new Error(`加载字幕失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      }
+    },
+
+    /**
      * 重置状态
      */
     reset() {
@@ -157,6 +194,7 @@ export const useVideoStore = defineStore('video', {
       this.currentTime = 0
       this.activeSubtitleIndex = null
       this.subtitles = []
+      this.currentSubtitleInfo = null
     }
   },
 
