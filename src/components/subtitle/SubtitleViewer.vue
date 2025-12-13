@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { useVideoStore } from '@/stores/videoStore'
+import { useVideoStore } from '@/hooks/useVideoStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import {
   ClipboardDocumentIcon,
@@ -44,21 +44,21 @@ const userScrollTimer = ref<number | null>(null) // 用户滚动计时器
 const isTranscribing = ref(false)
 const transcriptionProgress = ref('')
 
-// 获取 Pinia store
-const videoStore = useVideoStore()
+// 获取 store
+const videoStore = useVideoStore(props.platformType)
 const settingsStore = useSettingsStore()
 
 // 从store获取字幕数据
-const subtitles = computed(() => videoStore.subtitles)
+const subtitles = computed(() => videoStore.subtitles.value)
 
 // 直接使用计算属性绑定 store 中的自动滚动状态
 const autoScrollEnabled = computed({
-  get: () => videoStore.autoScroll,
+  get: () => videoStore.autoScroll.value,
   set: (value) => videoStore.setAutoScroll(value)
 })
 
 // 当前激活的字幕索引计算属性
-const currentSubtitleIndex = computed(() => videoStore.activeSubtitleIndex)
+const currentSubtitleIndex = computed(() => videoStore.activeSubtitleIndex.value)
 
 // 获取视频平台名称（用于UI显示）
 const platformName = computed(() => {
@@ -77,10 +77,9 @@ const toggleBilingual = () => {
 }
 
 // 更新跳转到指定时间的功能
-const jumpToTime = (timeStr: string) => {
-  if (!timeStr) return
+const jumpToTime = (timeInMs: number) => {
   // 使用store中的方法直接跳转
-  videoStore.jumpToTimeByString(timeStr)
+  videoStore.jumpToTime(timeInMs)
 }
 
 // 处理用户手动滚动事件
@@ -215,7 +214,7 @@ const handleTranscriptionError = (data: any) => {
 
 
 // 监听当前激活的字幕索引变化，自动滚动到对应字幕
-watch(() => videoStore.activeSubtitleIndex, (newIndex) => {
+watch(() => videoStore.activeSubtitleIndex.value, (newIndex) => {
   if (newIndex !== null && autoScrollEnabled.value) {
     nextTick(() => scrollToCurrentSubtitle(newIndex))
   }
@@ -302,7 +301,7 @@ window.addEventListener('message', (event) => {
             ? 'bg-accent' 
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         ]"
-        @click="jumpToTime(subtitle.time)"
+        @click="jumpToTime(subtitle.startTime)"
       >
         <span class="font-mono w-12 flex-shrink-0" :class="[currentSubtitleIndex === index ? 'text-primary' : '']">{{ subtitle.time }}</span>
         <div class="flex flex-col">

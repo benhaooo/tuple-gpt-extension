@@ -2,27 +2,15 @@ import { createTwindElement, injectCustomElement } from '@/components/TwindShado
 import { VideoType } from '@/utils/subtitlesApi'
 import SiderComponent from './views/SiderComponent.ce.vue'
 import { createVideoTimeTracker } from '@/utils/videoTimeTracker'
-import { 
-  MessageType, 
-  registerMessageListener, 
-  sendMessageToBackground 
+import {
+  MessageType,
+  sendMessageToBackground
 } from '@/utils/messages'
-import { createPinia } from 'pinia'
-import { useVideoStore } from '@/stores/videoStore'
 
 console.log('[Tuple-GPT] YouTube content script loaded!')
 
-// 创建 Pinia 实例
-const pinia = createPinia()
-
-// 创建并注册自定义元素，传入 pinia 实例
-const customElementOptions = { plugins: [pinia] }
-createTwindElement(SiderComponent, 'tuple-gpt-sider', customElementOptions)
-
-// 初始化 store
-const videoStore = useVideoStore(pinia)
-// 设置初始平台类型
-videoStore.setCurrentUrl(window.location.href, VideoType.YOUTUBE)
+// 创建并注册自定义元素
+createTwindElement(SiderComponent, 'tuple-gpt-sider')
 
 // 创建视频时间跟踪器
 const videoTimeTracker = createVideoTimeTracker({
@@ -97,21 +85,6 @@ async function registerTab() {
   }
 }
 
-// 监听来自background的消息
-registerMessageListener((message, sender) => {
-  // 处理URL变化通知
-  if (message.type === MessageType.URL_CHANGE_NOTIFICATION) {
-    const url = message.data.url;
-    
-    // 检查是否是YouTube视频页面
-    if (url.includes('youtube.com/watch')) {
-      console.log('[Tuple-GPT] Received URL change notification for YouTube:', url);
-      
-      // 使用 Pinia store 更新 URL，而不是触发自定义事件
-      videoStore.setCurrentUrl(url, VideoType.YOUTUBE);
-    }
-  }
-});
 
 // 页面加载完成后执行注入和注册
 if (document.readyState === 'loading') {

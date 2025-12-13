@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { useVideoStore } from '@/stores/videoStore'
-// 导入组件
+import { useVideoStore } from '@/hooks/useVideoStore'
 import SubtitleViewer from '@/components/subtitle/SubtitleViewer.vue'
 import SummaryViewer from '@/components/summary/SummaryViewer.vue'
-// 导入Heroicons图标
 import {
   Bars3Icon,
   DocumentTextIcon,
@@ -16,13 +14,13 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useThemeManager } from '@/composables/useThemeManager'
 
-// 获取 Pinia store
-const videoStore = useVideoStore()
-
 // 接收平台类型作为组件属性
 const props = defineProps<{
   platformType: VideoType
 }>()
+
+// 使用新的 hook
+const videoStore = useVideoStore(props.platformType)
 
 // 视图状态
 const activeTab = ref('subtitles')
@@ -32,14 +30,10 @@ const isLanguageLoading = ref(false)
 
 // 从videoStore获取所需数据
 const videoTitle = computed(() => videoStore.videoTitle)
-const subtitleInfo = computed(() => videoStore.currentSubtitleInfo)
 const availableLanguages = computed(() => videoStore.availableLanguages)
 const subtitlesContent = computed(() => videoStore.subtitlesContent)
 const isLoading = computed(() => videoStore.isLoading)
 const error = computed(() => videoStore.error)
-
-// 计算属性：获取字幕列表
-const subtitles = computed(() => subtitleInfo.value?.subtitles ?? [])
 
 // 计算属性：获取当前选择的语言信息
 const currentLanguage = computed(() => {
@@ -65,12 +59,6 @@ const openSettings = () => {
   chrome.runtime.sendMessage({ action: 'openOptionsPage' })
 }
 
-// 跳转到指定时间的功能
-const jumpToTime = (timeStr: string) => {
-  if (!timeStr) return
-  // 使用store中的方法直接跳转
-  videoStore.jumpToTimeByString(timeStr)
-}
 
 // 语言选择处理函数
 const selectLanguage = async (language: any) => {
@@ -234,10 +222,9 @@ const summarizeVideo = () => {
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-base font-medium text-foreground">{{ videoTitle || '视频总结' }}</h2>
         </div>
-        <SummaryViewer 
-          :subtitles-content="subtitlesContent" 
+        <SummaryViewer
+          :subtitles-content="subtitlesContent"
           :video-title="videoTitle"
-          @jump-to-time="jumpToTime"
         />
       </div>
     </main>

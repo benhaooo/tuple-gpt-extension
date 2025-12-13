@@ -5,38 +5,21 @@ import {
   MessageType,
   sendMessageToBackground,
   registerMessageListener,
-  type TranscribeBilibiliAudioMessage,
   type AudioTranscriptionCompleteMessage,
   type AudioTranscriptionErrorMessage,
 } from '@/utils/messages'
-import { createPinia } from 'pinia'
-import { useVideoStore } from '@/stores/videoStore'
-import { createVideoTimeTracker } from '@/utils/videoTimeTracker'
 import {
   transcribeBilibiliAudio,
   transcriptionToSubtitles,
-  type TranscriptionResult
 } from '@/utils/audioUtils'
 
 console.log('[Tuple-GPT] Bilibili content script loaded!')
 
-// 初始化 Pinia store
-const pinia = createPinia()
+// 创建并注册自定义元素
+createTwindElement(SiderComponent, 'tuple-gpt-sider')
 
-// 创建并注册自定义元素，传入 pinia 实例
-const customElementOptions = { plugins: [pinia] }
-createTwindElement(SiderComponent, 'tuple-gpt-sider', customElementOptions)
+// 不再需要 pinia，直接在组件中使用 hook
 
-// 初始化 store
-const videoStore = useVideoStore(pinia)
-videoStore.setCurrentUrl(window.location.href, VideoType.BILIBILI)
-
-// 创建视频时间跟踪器
-const videoTimeTracker = createVideoTimeTracker({
-  platformType: VideoType.BILIBILI,
-  videoSelector: '#bilibili-player video',
-  additionalSelectors: ['.bilibili-player-video video', '.bpx-player-video-wrap video', 'video'] // 备用选择器
-})
 
 /**
  * 将Vue自定义元素注入到B站页面的指定位置。
@@ -56,7 +39,7 @@ function injectComponent() {
     containerSelector: '.right-container-inner',
     tagName: 'tuple-gpt-sider',
     elementId: elementId,
-    component: SiderComponent, // Pass the component here
+    component: SiderComponent,
     position: 'afterElement',
     targetElementSelector: '.up-panel-container',
     styles: {
@@ -129,14 +112,6 @@ registerMessageListener((message, sender) => {
   console.log('[Tuple-GPT] Bilibili收到消息:', message.type)
 
   switch (message.type) {
-    case MessageType.URL_CHANGE_NOTIFICATION:
-      const url = message.data.url
-      if (url.includes('bilibili.com/video')) {
-        console.log('[Tuple-GPT] Received URL change notification for Bilibili:', url)
-        videoStore.setCurrentUrl(url, VideoType.BILIBILI)
-      }
-      break
-
     case MessageType.TRANSCRIBE_BILIBILI_AUDIO:
       handleAudioTranscription(message.data)
       break
@@ -148,16 +123,8 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     injectComponent();
     registerTab();
-    // 初始化视频时间跟踪
-    videoTimeTracker.initialize();
-    // 监听URL变化
-    const cleanupUrlWatch = videoTimeTracker.watchUrlChanges();
   });
 } else {
   injectComponent();
   registerTab();
-  // 初始化视频时间跟踪
-  videoTimeTracker.initialize();
-  // 监听URL变化
-  const cleanupUrlWatch = videoTimeTracker.watchUrlChanges();
 } 

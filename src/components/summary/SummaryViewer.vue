@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import ContentSection from './ContentSection.vue'
 import { useAIContent } from '@/composables/useAIContent'
+import { useVideoStore } from '@/hooks/useVideoStore'
 // 导入提示词
 import { SUMMARY_PROMPT, OVERVIEW_PROMPT, KEYPOINTS_PROMPT, QUESTIONS_PROMPT } from '@/constants/prompt'
 // 导入Heroicons图标
@@ -33,6 +34,9 @@ const contentSelections = ref({
   questions: true
 })
 
+// 获取 videoStore 实例
+const videoStore = useVideoStore()
+
 // 初始化各个内容区域
 const summaryContent = useAIContent()
 const overviewContent = useAIContent({ processLinks: true })
@@ -42,22 +46,18 @@ const questionsContent = useAIContent()
 // 跳转到视频时间的事件处理
 const handleTimeLink = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  
+
   // 检查是否点击了时间链接
   if (target.classList.contains('time-link')) {
     event.preventDefault()
     const timeStr = target.getAttribute('data-time')
     if (timeStr) {
-      // 将事件冒泡到父组件
-      emit('jumpToTime', timeStr)
+      // 直接调用 store 方法处理时间字符串
+      videoStore.jumpToTimeString(timeStr)
     }
   }
 }
 
-// 定义emit
-const emit = defineEmits<{
-  (e: 'jumpToTime', time: string): void;
-}>()
 
 // 生成特定部分的内容
 const generateContent = async (type: 'summary' | 'overview' | 'keypoints' | 'questions') => {
