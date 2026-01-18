@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, toRefs, watchEffect } from 'vue'
+import { ref, watch, nextTick} from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { useSettingsStore } from '@/stores/settingsStore'
 import {
@@ -16,20 +16,24 @@ import {
 } from '@/utils/messages'
 
 const props = defineProps<{
-  platformType: VideoType;
-  isLoading: boolean;
-  error: string | null;
-  subtitlesContent: string;
-  loadSubtitles: () => Promise<void>;
-  selectedSubtitle: any;
-  activeSubtitleIndex: number | null;
-  autoScroll: boolean;
-  setAutoScroll: (value: boolean) => void;
-  jumpToTime: (timeInMs: number) => void;
+  platformType: VideoType
+  isLoading: boolean
+  error: string | null
+  subtitlesContent: string
+  selectedSubtitle: any
+  activeSubtitleIndex: number | null
 }>()
 
+const emit = defineEmits<{
+  jumpToTime: [timeInMs: number]
+  loadSubtitles: []
+}>()
+
+// 使用 defineModel 实现双向绑定
+const autoScrollEnabled = defineModel<boolean>('autoScroll', { required: true })
 
 
+// TODO: 双向绑定
 // 视图状态
 const internalError = ref<string | null>(props.error)
 watch(
@@ -42,7 +46,7 @@ const bilingualMode = ref(false)
 const subtitlesRef = ref<HTMLElement | null>(null) // 字幕容器引用
 const copySuccess = ref(false)
 const isUserScrolling = ref(false) // 用户是否正在手动滚动
-const userScrollTimer = ref<number | null>(null) // 用户滚动计时器
+const userScrollTimer = ref<ReturnType<typeof setTimeout> | null>(null) // 用户滚动计时器
 
 // 音频转录相关状态
 const isTranscribing = ref(false)
@@ -51,21 +55,16 @@ const transcriptionProgress = ref('')
 const settingsStore = useSettingsStore()
 
 
-// 直接使用计算属性绑定 store 中的自动滚动状态
-const autoScrollEnabled = computed({
-  get: () => props.autoScroll,
-  set: (value) => props.setAutoScroll(value)
-})
-
-
 const toggleBilingual = () => {
   bilingualMode.value = !bilingualMode.value
 }
 
-// 更新跳转到指定时间的功能
 const jumpToTime = (timeInMs: number) => {
-  // 使用传入的方法直接跳转
-  props.jumpToTime(timeInMs)
+  emit('jumpToTime', timeInMs)
+}
+
+const loadSubtitles = () => {
+  emit('loadSubtitles')
 }
 
 // 处理用户手动滚动事件
@@ -82,7 +81,7 @@ const handleUserScroll = () => {
   userScrollTimer.value = setTimeout(() => {
     isUserScrolling.value = false
     userScrollTimer.value = null
-  }, 1500) as unknown as number
+  }, 1500)
 }
 
 // 滚动到当前字幕的函数
@@ -313,8 +312,6 @@ window.addEventListener('message', (event) => {
     <div v-if="transcriptionProgress" class="mt-2 text-sm text-muted-foreground">
       {{ transcriptionProgress }}
     </div>
-
-
   </div>
 </template>
 

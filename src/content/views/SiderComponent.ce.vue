@@ -25,10 +25,6 @@ const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subt
 const activeTab = ref('subtitles')
 const showLanguageDropdown = ref(false)
 
-// 创建并初始化字幕管理器
-onMounted(async () => {
-  await videoStore.initializeSubtitles(props.platformType)
-})
 
 // UI交互处理函数（仅UI状态更新，无实际功能）
 const selectTab = (tab: 'subtitles' | 'summary') => {
@@ -108,7 +104,7 @@ const summarizeVideo = () => {
     <!-- 头部 -->
     <header class="flex justify-between items-center p-3 border-b border-border flex-shrink-0">
       <div class="flex items-center gap-2">
-        <img src="../../assets/sider-logo.svg" alt="Sider" class="w-7 h-7" />
+        <!-- <img src="../../assets/sider-logo.svg" alt="Sider" class="w-7 h-7" /> -->
         <h1 class="text-lg font-bold text-foreground">Sider</h1>
       </div>
       <div class="flex items-center gap-3 text-foreground">
@@ -166,9 +162,9 @@ const summarizeVideo = () => {
     <main class="flex-grow overflow-y-auto min-h-0">
       <div v-show="activeTab === 'subtitles'" class="p-3">
         <SubtitleViewer :platform-type="props.platformType" :is-loading="isLoading" :error="error"
-          :subtitles-content="subtitlesContent" :load-subtitles="loadSubtitles" :selected-subtitle="selectedSubtitle"
-          :active-subtitle-index="activeSubtitleIndex" :auto-scroll="videoStore.autoScroll.value"
-          :set-auto-scroll="videoStore.setAutoScroll" :jump-to-time="videoStore.jumpToTime" />
+          :subtitles-content="subtitlesContent" :selected-subtitle="selectedSubtitle"
+          :active-subtitle-index="activeSubtitleIndex" v-model:auto-scroll="videoStore.autoScroll.value"
+          @jump-to-time="videoStore.jumpToTime" @load-subtitles="loadSubtitles" />
       </div>
       <!-- 总结视图 -->
       <div v-show="activeTab === 'summary'" class="p-3">

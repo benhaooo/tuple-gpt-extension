@@ -1,55 +1,30 @@
 import { ref, computed, watch, onMounted } from 'vue'
-import { VideoType, SubtitleItem, SubtitleLanguageInfo, SubtitleInfo } from '@/utils/subtitlesApi'
+import { VideoType, SubtitleLanguageInfo } from '@/utils/subtitlesApi'
 import { BaseSubtitleManager } from '@/managers/BaseSubtitleManager'
 import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'
 
 export function useVideoStore(platformType: VideoType) {
   const currentUrl = ref(window.location.href)
-  const currentTime = ref(0)
   const autoScroll = ref(true)
   const activeSubtitleIndex = ref<number | null>(null)
-  const currentSubtitleInfo = ref<SubtitleInfo | null>(null)
   const availableSubtitles = ref<SubtitleLanguageInfo[]>([])
   const selectedLanguage = ref<string>('')
   const videoTitle = ref('')
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const subtitleManager = ref<BaseSubtitleManager | null>(null)
+  const subtitleManager = ref<BaseSubtitleManager>(createSubtitleManager(platformType))
 
 
   const videoTracker = useVideoTimeTracker({
     platformType,
     onUpdate: (time: number) => {
-      currentTime.value = time
       if (autoScroll.value) {
-        updateActiveSubtitleIndex()
+        updateActiveSubtitleIndex(time)
       }
     }
   })
 
-  // Getters
-  const videoId = computed(() => {
-    if (!currentUrl.value) return null
-
-    try {
-      const url = new URL(currentUrl.value)
-
-      if (platformType === VideoType.BILIBILI) {
-        const videoIdMatch = url.pathname.match(/\/video\/(BV[\w]+)/)
-        return videoIdMatch ? videoIdMatch[1] : null
-      }
-
-      if (platformType === VideoType.YOUTUBE) {
-        return url.searchParams.get('v')
-      }
-
-      return null
-    } catch (e) {
-      console.error('[Tuple-GPT] Error parsing video ID:', e)
-      return null
-    }
-  })
 
   const subtitlesContent = computed(() => {
     const subtitles = selectedSubtitle.value?.subtitles
@@ -64,7 +39,7 @@ export function useVideoStore(platformType: VideoType) {
 
   // Watch 选中字幕的语言变化，自动加载对应字幕
   watch(() => selectedSubtitle.value?.lan, async (newLan) => {
-    if (!newLan || !subtitleManager.value || !selectedSubtitle.value) return
+    if (!newLan || !selectedSubtitle.value) return
 
     isLoading.value = true
     error.value = null
@@ -75,21 +50,11 @@ export function useVideoStore(platformType: VideoType) {
     isLoading.value = false
   })
 
-  // Actions
-  function setCurrentUrl(url: string, newPlatformType: VideoType) {
-    currentUrl.value = url
-    console.log(`[Tuple-GPT] Video store URL updated: ${url} (${newPlatformType})`)
-  }
-
-  async function switchSubtitleManager(newPlatformType: VideoType) {
-    const newManager = createSubtitleManager(newPlatformType)
-    if (!newManager) return
-
-    subtitleManager.value = newManager
+  async function initializeSubtitles() {
     isLoading.value = true
     error.value = null
 
-    const result = await newManager.initialize()
+    const result = await subtitleManager.value.initialize()
 
     availableSubtitles.value = result.availableLanguages
     videoTitle.value = result.videoTitle
@@ -99,14 +64,6 @@ export function useVideoStore(platformType: VideoType) {
       selectedLanguage.value = result.availableLanguages[0].lan
     }
 
-    console.log(`[Tuple-GPT] 字幕管理器切换成功: ${newPlatformType}`)
-  }
-
-  function updateCurrentTime(time: number) {
-    currentTime.value = time
-    if (autoScroll.value) {
-      updateActiveSubtitleIndex()
-    }
   }
 
   function setAutoScroll(enabled: boolean) {
@@ -121,8 +78,8 @@ export function useVideoStore(platformType: VideoType) {
   }
 
 
-  function updateActiveSubtitleIndex() {
-    const newIndex = findSubtitleIndexByTime(currentTime.value)
+  function updateActiveSubtitleIndex(time: number) {
+    const newIndex = findSubtitleIndexByTime(time)
     if (newIndex !== null && newIndex !== activeSubtitleIndex.value) {
       activeSubtitleIndex.value = newIndex
     }
@@ -163,40 +120,15 @@ export function useVideoStore(platformType: VideoType) {
     videoTracker.jumpToTime(totalSeconds)
   }
 
-  async function initializeSubtitles(newPlatformType: VideoType) {
-    if (!subtitleManager.value || platformType !== newPlatformType) {
-      await switchSubtitleManager(newPlatformType)
-    }
-  }
 
-  function reset() {
-    if (subtitleManager.value) {
-      subtitleManager.value.cleanup()
-    }
-
-    // Reset all refs
-    currentUrl.value = window.location.href
-    currentTime.value = 0
-    autoScroll.value = true
-    activeSubtitleIndex.value = null
-    currentSubtitleInfo.value = null
-    selectedLanguage.value = null
-    videoTitle.value = ''
-    isLoading.value = false
-    error.value = null
-    subtitleManager.value = null
-  }
-
-  onMounted(async () => {
-    await switchSubtitleManager(platformType)
+  onMounted(() => {
+    initializeSubtitles()
   })
 
   return {
     currentUrl,
-    currentTime,
     autoScroll,
     activeSubtitleIndex,
-    currentSubtitleInfo,
     selectedLanguage,
     videoTitle,
     isLoading,
@@ -204,18 +136,14 @@ export function useVideoStore(platformType: VideoType) {
     availableSubtitles,
 
     // Getters
-    videoId,
     subtitlesContent,
     selectedSubtitle,
 
     // Actions
-    setCurrentUrl,
-    updateCurrentTime,
     setAutoScroll,
     setActiveSubtitleIndex,
     initializeSubtitles,
     jumpToTime,
     jumpToTimeString,
-    reset,
   }
 }
