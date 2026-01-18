@@ -14,7 +14,7 @@ export class ApiClientFactory {
     // 直接创建新的客户端实例，不使用缓存
     let client: ApiClient;
     
-    switch (provider.type.toLowerCase()) {
+    switch (provider.type?.toLowerCase()) {
       case 'openai':
       case '302ai':
       case 'silicon':

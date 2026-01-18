@@ -9,36 +9,28 @@ import { BilibiliSubtitleManager } from './BilibiliSubtitleManager'
  */
 export class SubtitleManagerFactory {
   /**
-   * 根据平台类型创建字幕管理��
+   * 根据平台类型创建字幕管理器
    * @param platformType 平台类型
-   * @param videoStore 视频store实例
    * @returns 对应的字幕管理器实例
    */
-  static createManager(
-    platformType: VideoType,
-    videoStore: any
-  ): BaseSubtitleManager | null {
+  static createManager(platformType: VideoType): BaseSubtitleManager | null {
     switch (platformType) {
       case VideoType.YOUTUBE:
-        return new YouTubeSubtitleManager(videoStore)
+        return new YouTubeSubtitleManager()
 
       case VideoType.BILIBILI:
-        return new BilibiliSubtitleManager(videoStore)
+        return new BilibiliSubtitleManager()
 
-      default:
-        console.warn(`[Tuple-GPT] 不支持的平台类型: ${platformType}`)
-        return null
     }
   }
 
   /**
    * 检测当前页面平台类型并创建对应的字幕管理器
-   * @param videoStore 视频store实例
    * @returns 对应的字幕管理器实例
    */
-  static createManagerForCurrentPage(videoStore: any): BaseSubtitleManager | null {
+  static createManagerForCurrentPage(): BaseSubtitleManager | null {
     const platformType = this.detectPlatformType()
-    return this.createManager(platformType, videoStore)
+    return this.createManager(platformType)
   }
 
   /**
@@ -80,21 +72,16 @@ export class SubtitleManagerFactory {
 /**
  * 便捷函数：创建字幕管理器
  * @param platformType 平台类型
- * @param videoStore 视频store实例
  * @returns 对应的字幕管理器实例
  */
-export function createSubtitleManager(
-  platformType: VideoType,
-  videoStore: any
-): BaseSubtitleManager | null {
-  return SubtitleManagerFactory.createManager(platformType, videoStore)
+export function createSubtitleManager(platformType: VideoType): BaseSubtitleManager | null {
+  return SubtitleManagerFactory.createManager(platformType)
 }
 
 /**
  * 便捷函数：检测当前页面并创建字幕管理器
- * @param videoStore 视频store实例
  * @returns 对应的字幕管理器实例
  */
-export function createSubtitleManagerForCurrentPage(videoStore: any): BaseSubtitleManager | null {
-  return SubtitleManagerFactory.createManagerForCurrentPage(videoStore)
+export function createSubtitleManagerForCurrentPage(): BaseSubtitleManager | null {
+  return SubtitleManagerFactory.createManagerForCurrentPage()
 }

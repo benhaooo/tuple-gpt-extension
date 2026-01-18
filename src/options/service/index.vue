@@ -353,7 +353,7 @@ if (providers.value.length > 0) {
 }
 </script>
 
-<style>
+<style scoped>
 .model-dialog .el-dialog__body {
     padding: 0 20px 20px;
 }

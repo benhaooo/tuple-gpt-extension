@@ -1,9 +1,8 @@
 import { createApp } from 'vue'
 import App from './SidePanel.vue'
-import { setupGlobalTwind } from '@/components/TwindShadowWrapper'
 import { createPinia } from 'pinia'
+import '@/styles/variables.css'
 
-setupGlobalTwind()
 const pinia = createPinia()
 const app = createApp(App)
 app.use(pinia)

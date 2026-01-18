@@ -42,7 +42,7 @@ const themeClasses = computed(() => {
         bg: 'bg-accent-soft',
         text: 'text-accent-soft-foreground',
         prose: 'prose-accent'
-  }
+      }
     default:
       return {
         bg: 'bg-background',
@@ -118,7 +118,7 @@ const handleGenerate = () => {
   </div>
 </template> 
 
-<style>
+<style scoped>
 /* 自定义 prose 样式变体，确保链接颜色与主题一致 */
 .prose.prose-primary a {
   color: hsl(var(--primary));

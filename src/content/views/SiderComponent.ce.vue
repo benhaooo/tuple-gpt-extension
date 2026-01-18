@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { useVideoStore } from '@/hooks/useVideoStore'
-import SubtitleViewer from '@/components/subtitle/SubtitleViewer.vue'
-import SummaryViewer from '@/components/summary/SummaryViewer.vue'
+import SubtitleViewer from './cpnt/subtitle/SubtitleViewer.vue'
+import SummaryViewer from './cpnt/summary/SummaryViewer.vue'
 import {
   Bars3Icon,
   DocumentTextIcon,
   Cog6ToothIcon,
   ChatBubbleLeftIcon,
   DocumentChartBarIcon,
-  ChevronDownIcon
 } from '@heroicons/vue/24/outline'
 import { useThemeManager } from '@/composables/useThemeManager'
 
@@ -19,29 +18,12 @@ const props = defineProps<{
   platformType: VideoType
 }>()
 
-// 使用新的 hook
 const videoStore = useVideoStore(props.platformType)
+const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error,activeSubtitleIndex } = videoStore
 
 // 视图状态
 const activeTab = ref('subtitles')
-const selectedLanguage = ref('')
 const showLanguageDropdown = ref(false)
-const isLanguageLoading = ref(false)
-
-// 从videoStore获取所需数据
-const videoTitle = computed(() => videoStore.videoTitle)
-const availableLanguages = computed(() => videoStore.availableLanguages)
-const subtitlesContent = computed(() => videoStore.subtitlesContent)
-const isLoading = computed(() => videoStore.isLoading)
-const error = computed(() => videoStore.error)
-
-// 计算属性：获取当前选择的语言信息
-const currentLanguage = computed(() => {
-  if (selectedLanguage.value) {
-    return availableLanguages.value.find(lang => lang.lan === selectedLanguage.value)
-  }
-  return availableLanguages.value[0]
-})
 
 // 创建并初始化字幕管理器
 onMounted(async () => {
@@ -62,26 +44,8 @@ const openSettings = () => {
 
 // 语言选择处理函数
 const selectLanguage = async (language: any) => {
-  if (!language.subtitle_url) {
-    console.warn('该语言没有字幕URL:', language)
-    showLanguageDropdown.value = false
-    return
-  }
-
   selectedLanguage.value = language.lan
   showLanguageDropdown.value = false
-  isLanguageLoading.value = true
-
-  try {
-    // 使用store的新方法加载字幕
-    await videoStore.loadSubtitlesByLanguage(language)
-    console.log('成功切换到语言:', language.lan_doc)
-  } catch (error) {
-    console.error('切换语言失败:', error)
-    // 可以在这里显示错误提示
-  } finally {
-    isLanguageLoading.value = false
-  }
 }
 
 // 切换下拉框显示状态
@@ -139,7 +103,8 @@ const summarizeVideo = () => {
 </script>
 
 <template>
-  <div ref="componentRef" class="w-full h-full bg-surface text-foreground rounded-lg shadow-lg font-sans text-sm overflow-hidden flex flex-col">
+  <div ref="componentRef"
+    class="w-full h-full bg-surface text-foreground rounded-lg shadow-lg font-sans text-sm overflow-hidden flex flex-col">
     <!-- 头部 -->
     <header class="flex justify-between items-center p-3 border-b border-border flex-shrink-0">
       <div class="flex items-center gap-2">
@@ -152,55 +117,46 @@ const summarizeVideo = () => {
           <!-- Slider -->
           <div
             class="absolute top-1 left-1 h-6 w-7 transform bg-background rounded-md shadow-sm transition-transform duration-200 ease-in-out"
-            :style="{ transform: activeTab === 'summary' ? 'translateX(100%)' : 'translateX(0)' }"
-          ></div>
+            :style="{ transform: activeTab === 'summary' ? 'translateX(100%)' : 'translateX(0)' }"></div>
 
           <!-- Subtitles Button -->
-          <button @click="selectTab('subtitles')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center" :class="activeTab === 'subtitles' ? 'text-primary' : 'text-muted-foreground'">
+          <button @click="selectTab('subtitles')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
+            :class="activeTab === 'subtitles' ? 'text-primary' : 'text-muted-foreground'">
             <Bars3Icon class="h-5 w-5" />
           </button>
-          
+
           <!-- Summary/CC Button -->
-          <button @click="selectTab('summary')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center" :class="activeTab === 'summary' ? 'text-primary' : 'text-muted-foreground'">
+          <button @click="selectTab('summary')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
+            :class="activeTab === 'summary' ? 'text-primary' : 'text-muted-foreground'">
             <DocumentTextIcon class="h-5 w-5" />
           </button>
         </div>
 
         <!-- Language Selection Dropdown -->
         <div class="relative">
-          <button
-            @click.stop="toggleLanguageDropdown"
-            :disabled="isLanguageLoading"
-            class="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span v-if="isLanguageLoading" class="animate-pulse">加载中...</span>
-            <span v-else-if="currentLanguage">{{ currentLanguage.lan_doc?.slice(0, 8) || '语言' }}</span>
-            <span v-else>语言</span>
-            <ChevronDownIcon v-if="!isLanguageLoading" class="h-3 w-3" />
+          <button @click.stop="toggleLanguageDropdown""
+            class=" flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1
+            rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <span>{{ selectedSubtitle?.lan_doc }}</span>
           </button>
 
           <!-- 下拉框 -->
-          <div
-            v-if="showLanguageDropdown && availableLanguages.length > 0"
+          <div v-if="showLanguageDropdown && availableSubtitles.length"
             class="absolute top-full right-0 mt-1 w-32 bg-background border border-border rounded-md shadow-lg z-50"
-            @click.stop
-          >
+            @click.stop>
             <div class="py-1 max-h-48 overflow-y-auto">
-              <button
-                v-for="language in availableLanguages"
-                :key="language.lan"
-                @click="selectLanguage(language)"
+              <button v-for="language in availableSubtitles" :key="language.lan" @click="selectLanguage(language)"
                 class="w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors"
                 :class="{
                   'bg-accent text-accent-foreground': selectedLanguage === language.lan
-                }"
-              >
+                }">
                 {{ language.lan_doc }}
               </button>
             </div>
           </div>
         </div>
-        <button class="p-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" @click="openSettings">
+        <button class="p-1 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          @click="openSettings">
           <Cog6ToothIcon class="h-5 w-5" />
         </button>
       </div>
@@ -209,36 +165,31 @@ const summarizeVideo = () => {
     <!-- 主体内容 -->
     <main class="flex-grow overflow-y-auto min-h-0">
       <div v-show="activeTab === 'subtitles'" class="p-3">
-      <SubtitleViewer
-        :platform-type="props.platformType"
-        :is-loading="isLoading"
-        :error="error"
-        :subtitles-content="subtitlesContent"
-        :load-subtitles="loadSubtitles"
-      />
+        <SubtitleViewer :platform-type="props.platformType" :is-loading="isLoading" :error="error"
+          :subtitles-content="subtitlesContent" :load-subtitles="loadSubtitles" :selected-subtitle="selectedSubtitle"
+          :active-subtitle-index="activeSubtitleIndex" :auto-scroll="videoStore.autoScroll.value"
+          :set-auto-scroll="videoStore.setAutoScroll" :jump-to-time="videoStore.jumpToTime" />
       </div>
-    <!-- 总结视图 -->
+      <!-- 总结视图 -->
       <div v-show="activeTab === 'summary'" class="p-3">
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-base font-medium text-foreground">{{ videoTitle || '视频总结' }}</h2>
         </div>
-        <SummaryViewer
-          :subtitles-content="subtitlesContent"
-          :video-title="videoTitle"
-        />
+        <SummaryViewer :subtitles-content="subtitlesContent" :video-title="videoTitle" />
       </div>
     </main>
 
     <!-- Chat Footer -->
     <footer class="p-3 border-t border-border flex-shrink-0">
-       <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2">
         <div class="flex-grow h-9 bg-muted rounded-lg flex items-center px-3 cursor-pointer group hover:bg-accent">
           <span class="text-sm text-muted-foreground group-hover:text-accent-foreground">与视频聊天</span>
         </div>
         <button class="p-1.5 rounded-lg bg-muted hover:bg-accent group">
           <ChatBubbleLeftIcon class="h-5 w-5 text-muted-foreground group-hover:text-accent-foreground" />
         </button>
-        <button @click="summarizeVideo" class="px-3 py-1.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 flex items-center justify-center text-sm">
+        <button @click="summarizeVideo"
+          class="px-3 py-1.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 flex items-center justify-center text-sm">
           <DocumentChartBarIcon class="h-5 w-5 mr-1" />
           <span>总结</span>
         </button>
@@ -274,7 +225,4 @@ const summarizeVideo = () => {
   background: hsl(var(--primary));
   background-clip: content-box;
 }
-
-
 </style>
-

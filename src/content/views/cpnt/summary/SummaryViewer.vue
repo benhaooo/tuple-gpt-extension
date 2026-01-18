@@ -390,4 +390,7 @@ const contentIcons = {
       />
     </div>
   </div>
-</template> 
+</template>
+
+<style scoped>
+</style>

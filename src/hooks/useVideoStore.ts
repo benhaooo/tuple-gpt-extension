@@ -1,26 +1,22 @@
-/**
- * 视频状态管理 Hook
- * 替代之前的 pinia store，接受 platformType 参数
- */
-
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { VideoType, SubtitleItem, SubtitleLanguageInfo, SubtitleInfo, getSubtitlesByUrl } from '@/utils/subtitlesApi'
+import { ref, computed, watch, onMounted } from 'vue'
+import { VideoType, SubtitleItem, SubtitleLanguageInfo, SubtitleInfo } from '@/utils/subtitlesApi'
 import { BaseSubtitleManager } from '@/managers/BaseSubtitleManager'
+import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'
 
 export function useVideoStore(platformType: VideoType) {
-  // State
   const currentUrl = ref(window.location.href)
   const currentTime = ref(0)
   const autoScroll = ref(true)
   const activeSubtitleIndex = ref<number | null>(null)
-  const subtitles = ref<SubtitleItem[]>([])
   const currentSubtitleInfo = ref<SubtitleInfo | null>(null)
-  const availableLanguages = ref<SubtitleLanguageInfo[]>([])
+  const availableSubtitles = ref<SubtitleLanguageInfo[]>([])
+  const selectedLanguage = ref<string>('')
   const videoTitle = ref('')
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const subtitleManager = ref<BaseSubtitleManager | null>(null)
+
 
   const videoTracker = useVideoTimeTracker({
     platformType,
@@ -56,7 +52,27 @@ export function useVideoStore(platformType: VideoType) {
   })
 
   const subtitlesContent = computed(() => {
-    return subtitles.value.map(item => item.text).join(' ') ?? ''
+    const subtitles = selectedSubtitle.value?.subtitles
+    return subtitles?.map(item => item.text).join(' ') ?? ''
+  })
+
+  const selectedSubtitle = computed(() => {
+    return availableSubtitles.value.find(sub => {
+      return sub.lan === selectedLanguage.value;
+    })
+  })
+
+  // Watch 选中字幕的语言变化，自动加载对应字幕
+  watch(() => selectedSubtitle.value?.lan, async (newLan) => {
+    if (!newLan || !subtitleManager.value || !selectedSubtitle.value) return
+
+    isLoading.value = true
+    error.value = null
+
+    const subtitleInfo = await subtitleManager.value.loadSubtitlesByLanguage(selectedSubtitle.value)
+
+    selectedSubtitle.value.subtitles = subtitleInfo
+    isLoading.value = false
   })
 
   // Actions
@@ -66,31 +82,24 @@ export function useVideoStore(platformType: VideoType) {
   }
 
   async function switchSubtitleManager(newPlatformType: VideoType) {
-    if (subtitleManager.value) {
-      subtitleManager.value.cleanup()
-      subtitleManager.value = null
+    const newManager = createSubtitleManager(newPlatformType)
+    if (!newManager) return
+
+    subtitleManager.value = newManager
+    isLoading.value = true
+    error.value = null
+
+    const result = await newManager.initialize()
+
+    availableSubtitles.value = result.availableLanguages
+    videoTitle.value = result.videoTitle
+
+    // 自动选择第一个语言（如果有）
+    if (result.availableLanguages.length > 0) {
+      selectedLanguage.value = result.availableLanguages[0].lan
     }
 
-    const { createSubtitleManager } = await import('@/managers/SubtitleManagerFactory')
-    const newManager = createSubtitleManager(newPlatformType, {
-      updateCurrentTime,
-      updateSubtitles,
-      updateCurrentSubtitleInfo,
-      findSubtitleIndexByTime,
-      jumpToTime,
-      loadSubtitlesByLanguage,
-      setAvailableLanguages,
-      setLoading,
-      setError,
-      setVideoTitle
-    })
-
-    if (newManager) {
-      subtitleManager.value = newManager
-      await newManager.initialize()
-      videoTitle.value = newManager.getVideoTitle()
-      availableLanguages.value = newManager.getAvailableLanguages()
-    }
+    console.log(`[Tuple-GPT] 字幕管理器切换成功: ${newPlatformType}`)
   }
 
   function updateCurrentTime(time: number) {
@@ -111,19 +120,8 @@ export function useVideoStore(platformType: VideoType) {
     activeSubtitleIndex.value = index
   }
 
-  function updateSubtitles(newSubtitles: SubtitleItem[]) {
-    subtitles.value = newSubtitles
-  }
-
-  function updateCurrentSubtitleInfo(subtitleInfo: SubtitleInfo) {
-    currentSubtitleInfo.value = subtitleInfo
-    subtitles.value = subtitleInfo.subtitles
-    activeSubtitleIndex.value = null
-  }
 
   function updateActiveSubtitleIndex() {
-    if (!subtitles.value.length) return
-
     const newIndex = findSubtitleIndexByTime(currentTime.value)
     if (newIndex !== null && newIndex !== activeSubtitleIndex.value) {
       activeSubtitleIndex.value = newIndex
@@ -131,9 +129,10 @@ export function useVideoStore(platformType: VideoType) {
   }
 
   function findSubtitleIndexByTime(timeInSeconds: number): number | null {
-    if (!subtitles.value || subtitles.value.length === 0) return null
+    const subtitles = selectedSubtitle.value?.subtitles
+    if (!subtitles?.length) return null
 
-    return subtitles.value.findIndex((subtitle, index, array) => {
+    return subtitles.findIndex((subtitle, index, array) => {
       const startTimeInSeconds = subtitle.startTime / 1000
 
       let endTimeInSeconds
@@ -164,44 +163,8 @@ export function useVideoStore(platformType: VideoType) {
     videoTracker.jumpToTime(totalSeconds)
   }
 
-  async function loadSubtitlesByLanguage(language: SubtitleLanguageInfo) {
-    if (!language.subtitle_url) {
-      console.error('语言信息中没有字幕URL:', language)
-      throw new Error('该语言没有可用的字幕URL')
-    }
-
-    try {
-      console.log(`[Tuple-GPT] 正在加载 ${language.lan_doc} 字幕...`)
-      const subtitleInfo = await getSubtitlesByUrl(language.subtitle_url, language.lan)
-
-      updateCurrentSubtitleInfo(subtitleInfo)
-
-      console.log(`[Tuple-GPT] 字幕加载完成: ${language.lan_doc}, 共 ${subtitleInfo.subtitles.length} 条字幕`)
-      return subtitleInfo
-    } catch (error) {
-      console.error(`[Tuple-GPT] 加载字幕失败:`, error)
-      throw new Error(`加载字幕失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    }
-  }
-
-  function setAvailableLanguages(languages: SubtitleLanguageInfo[]) {
-    availableLanguages.value = languages
-  }
-
-  function setLoading(loading: boolean) {
-    isLoading.value = loading
-  }
-
-  function setError(err: string | null) {
-    error.value = err
-  }
-
-  function setVideoTitle(title: string) {
-    videoTitle.value = title
-  }
-
   async function initializeSubtitles(newPlatformType: VideoType) {
-    if (!subtitleManager.value || platformType.value !== newPlatformType) {
+    if (!subtitleManager.value || platformType !== newPlatformType) {
       await switchSubtitleManager(newPlatformType)
     }
   }
@@ -216,59 +179,41 @@ export function useVideoStore(platformType: VideoType) {
     currentTime.value = 0
     autoScroll.value = true
     activeSubtitleIndex.value = null
-    subtitles.value = []
     currentSubtitleInfo.value = null
-    availableLanguages.value = []
+    selectedLanguage.value = null
     videoTitle.value = ''
     isLoading.value = false
     error.value = null
     subtitleManager.value = null
   }
 
-  // 在组件挂载时初始化字幕管理器
   onMounted(async () => {
     await switchSubtitleManager(platformType)
   })
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    if (subtitleManager.value) {
-      subtitleManager.value.cleanup()
-    }
-  })
-
   return {
-    // State
     currentUrl,
     currentTime,
     autoScroll,
     activeSubtitleIndex,
-    subtitles,
     currentSubtitleInfo,
-    availableLanguages,
+    selectedLanguage,
     videoTitle,
     isLoading,
     error,
-    subtitleManager,
+    availableSubtitles,
 
     // Getters
     videoId,
     subtitlesContent,
+    selectedSubtitle,
 
     // Actions
     setCurrentUrl,
     updateCurrentTime,
     setAutoScroll,
     setActiveSubtitleIndex,
-    updateSubtitles,
-    updateCurrentSubtitleInfo,
-    switchSubtitleManager,
     initializeSubtitles,
-    loadSubtitlesByLanguage,
-    setAvailableLanguages,
-    setLoading,
-    setError,
-    setVideoTitle,
     jumpToTime,
     jumpToTimeString,
     reset,

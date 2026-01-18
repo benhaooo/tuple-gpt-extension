@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, toRefs, watchEffect } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
-import { useVideoStore } from '@/hooks/useVideoStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import {
   ClipboardDocumentIcon,
@@ -22,6 +21,11 @@ const props = defineProps<{
   error: string | null;
   subtitlesContent: string;
   loadSubtitles: () => Promise<void>;
+  selectedSubtitle: any;
+  activeSubtitleIndex: number | null;
+  autoScroll: boolean;
+  setAutoScroll: (value: boolean) => void;
+  jumpToTime: (timeInMs: number) => void;
 }>()
 
 
@@ -44,33 +48,15 @@ const userScrollTimer = ref<number | null>(null) // 用户滚动计时器
 const isTranscribing = ref(false)
 const transcriptionProgress = ref('')
 
-// 获取 store
-const videoStore = useVideoStore(props.platformType)
 const settingsStore = useSettingsStore()
 
-// 从store获取字幕数据
-const subtitles = computed(() => videoStore.subtitles.value)
 
 // 直接使用计算属性绑定 store 中的自动滚动状态
 const autoScrollEnabled = computed({
-  get: () => videoStore.autoScroll.value,
-  set: (value) => videoStore.setAutoScroll(value)
+  get: () => props.autoScroll,
+  set: (value) => props.setAutoScroll(value)
 })
 
-// 当前激活的字幕索引计算属性
-const currentSubtitleIndex = computed(() => videoStore.activeSubtitleIndex.value)
-
-// 获取视频平台名称（用于UI显示）
-const platformName = computed(() => {
-  switch (props.platformType) {
-    case VideoType.YOUTUBE:
-      return 'YouTube'
-    case VideoType.BILIBILI:
-      return 'Bilibili'
-    default:
-      return '未知平台'
-  }
-})
 
 const toggleBilingual = () => {
   bilingualMode.value = !bilingualMode.value
@@ -78,20 +64,20 @@ const toggleBilingual = () => {
 
 // 更新跳转到指定时间的功能
 const jumpToTime = (timeInMs: number) => {
-  // 使用store中的方法直接跳转
-  videoStore.jumpToTime(timeInMs)
+  // 使用传入的方法直接跳转
+  props.jumpToTime(timeInMs)
 }
 
 // 处理用户手动滚动事件
 const handleUserScroll = () => {
   // 标记用户正在手动滚动
   isUserScrolling.value = true
-  
+
   // 清除之前的计时器
   if (userScrollTimer.value !== null) {
     clearTimeout(userScrollTimer.value)
   }
-  
+
   // 设置新的计时器，1.5秒后恢复自动滚动
   userScrollTimer.value = setTimeout(() => {
     isUserScrolling.value = false
@@ -103,10 +89,10 @@ const handleUserScroll = () => {
 const scrollToCurrentSubtitle = (index: number) => {
   // 如果用户正在手动滚动，不执行自动滚动
   if (isUserScrolling.value) return
-  
+
   const container = subtitlesRef.value
   if (!container) return
-  
+
   const targetElement = container.querySelectorAll('.subtitle-item')[index] as HTMLElement
   if (!targetElement) return
 
@@ -116,7 +102,7 @@ const scrollToCurrentSubtitle = (index: number) => {
 
   // 计算目标元素相对于容器的顶部偏移量
   const offsetTop = targetRect.top - containerRect.top
-  
+
   // 计算使目标元素居中所需的滚动位置
   const newScrollTop = container.scrollTop + offsetTop - (container.clientHeight / 2) + (targetElement.clientHeight / 2)
 
@@ -191,7 +177,7 @@ const handleTranscriptionComplete = (data: any) => {
   // 将转录字幕更新到store中，UI会自动响应
   if (data.subtitles && data.subtitles.length > 0) {
     console.log('转录字幕:', data.subtitles)
-    videoStore.updateSubtitles(data.subtitles)
+
   }
 
   // 清除进度提示
@@ -214,7 +200,7 @@ const handleTranscriptionError = (data: any) => {
 
 
 // 监听当前激活的字幕索引变化，自动滚动到对应字幕
-watch(() => videoStore.activeSubtitleIndex.value, (newIndex) => {
+watch(() => props.activeSubtitleIndex, (newIndex) => {
   if (newIndex !== null && autoScrollEnabled.value) {
     nextTick(() => scrollToCurrentSubtitle(newIndex))
   }
@@ -240,21 +226,20 @@ window.addEventListener('message', (event) => {
   <div>
     <!-- 字幕标题和双语切换 -->
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-base font-medium text-foreground">{{ platformName }}字幕</h2>
+      <h2 class="text-base font-medium text-foreground">{{ platformType }}字幕</h2>
       <div class="flex items-center gap-2">
         <!-- 双语切换 -->
         <span class="text-sm text-foreground">双语</span>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" v-model="bilingualMode" class="sr-only peer" @change="toggleBilingual">
-          <div class="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          <div
+            class="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary">
+          </div>
         </label>
-        
+
         <!-- 自动滚动切换 -->
-        <button
-          @click="autoScrollEnabled = !autoScrollEnabled"
-          class="p-2 rounded-lg hover:bg-accent"
-          :title="autoScrollEnabled ? '已开启字幕跟随' : '已关闭字幕跟随'"
-        >
+        <button @click="autoScrollEnabled = !autoScrollEnabled" class="p-2 rounded-lg hover:bg-accent"
+          :title="autoScrollEnabled ? '已开启字幕跟随' : '已关闭字幕跟随'">
           <LinkIcon class="h-5 w-5" :class="[
             autoScrollEnabled ? 'text-primary' : 'text-muted-foreground',
             isUserScrolling && autoScrollEnabled ? 'animate-pulse' : ''
@@ -271,39 +256,34 @@ window.addEventListener('message', (event) => {
     <!-- 错误提示 -->
     <div v-else-if="internalError" class="py-6 text-center">
       <div class="text-destructive mb-2">{{ internalError }}</div>
-      <button @click="loadSubtitles" class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
+      <button @click="loadSubtitles"
+        class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
         <ArrowPathIcon class="h-5 w-5" />
       </button>
     </div>
 
     <!-- 无字幕提示 -->
-    <div v-else-if="subtitles.length === 0" class="py-6 text-center">
+    <div v-else-if="!selectedSubtitle?.subtitles?.length" class="py-6 text-center">
       <div class="text-muted-foreground mb-2">未找到字幕</div>
-      <button @click="loadSubtitles" class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
+      <button @click="loadSubtitles"
+        class="p-2 bg-primary text-primary-foreground rounded-md hover:brightness-110 flex items-center justify-center">
         <ArrowPathIcon class="h-5 w-5" />
       </button>
     </div>
 
     <!-- 字幕列表 -->
-    <div 
-      v-else 
-      class="space-y-1 max-h-96 overflow-y-auto"
-      style="scroll-behavior: smooth;"
-      ref="subtitlesRef"
-      @scroll="handleUserScroll"
-    >
-      <div 
-        v-for="(subtitle, index) in subtitles" 
-        :key="`${subtitle.startTime}-${subtitle.endTime}`" 
+    <div v-else class="space-y-1 max-h-96 overflow-y-auto" style="scroll-behavior: smooth;" ref="subtitlesRef"
+      @scroll="handleUserScroll">
+      <div v-for="(subtitle, index) in selectedSubtitle?.subtitles || []"
+        :key="`${subtitle.startTime}-${subtitle.endTime}`"
         class="flex gap-3 leading-relaxed py-1.5 px-2 rounded-md transition-colors duration-200 subtitle-item cursor-pointer"
         :class="[
-          currentSubtitleIndex === index 
-            ? 'bg-accent' 
+          props.activeSubtitleIndex === index
+            ? 'bg-accent'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-        ]"
-        @click="jumpToTime(subtitle.startTime)"
-      >
-        <span class="font-mono w-12 flex-shrink-0" :class="[currentSubtitleIndex === index ? 'text-primary' : '']">{{ subtitle.time }}</span>
+        ]" @click="jumpToTime(subtitle.startTime)">
+        <span class="font-mono w-12 flex-shrink-0" :class="[props.activeSubtitleIndex === index ? 'text-primary' : '']">{{
+          subtitle.time }}</span>
         <div class="flex flex-col">
           <span>{{ subtitle.text }}</span>
           <span v-if="bilingualMode && subtitle.translatedText" class="text-muted-foreground/80 text-xs mt-1">
@@ -322,13 +302,8 @@ window.addEventListener('message', (event) => {
       </button>
 
       <!-- 音频转录按钮 (仅Bilibili显示) -->
-      <button
-        v-if="platformType === VideoType.BILIBILI"
-        @click="transcribeAudio"
-        :disabled="isTranscribing"
-        class="p-2 rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-        title="转录音频为字幕"
-      >
+      <button v-if="platformType === VideoType.BILIBILI" @click="transcribeAudio" :disabled="isTranscribing"
+        class="p-2 rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed" title="转录音频为字幕">
         <div v-if="isTranscribing" class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
         <SpeakerWaveIcon v-else class="h-5 w-5 text-muted-foreground" />
       </button>
@@ -341,4 +316,6 @@ window.addEventListener('message', (event) => {
 
 
   </div>
-</template> 
+</template>
+
+<style scoped></style>

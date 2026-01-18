@@ -1,5 +1,5 @@
 import SiderComponent from '@/content/views/SiderComponent.ce.vue'
-import { createTwindElement, injectCustomElement } from '@/components/TwindShadowWrapper'
+import { injectCustomElement } from '@/content/TwindShadowWrapper'
 import { VideoType } from '@/utils/subtitlesApi'
 import {
   MessageType,
@@ -12,13 +12,10 @@ import {
   transcribeBilibiliAudio,
   transcriptionToSubtitles,
 } from '@/utils/audioUtils'
-
+import { onDOMReady } from '@/utils/domUtils'
+import themeStyles from '@/styles/variables.css?inline'
+import '@/styles/variables.css'
 console.log('[Tuple-GPT] Bilibili content script loaded!')
-
-// 创建并注册自定义元素
-createTwindElement(SiderComponent, 'tuple-gpt-sider')
-
-// 不再需要 pinia，直接在组件中使用 hook
 
 
 /**
@@ -29,12 +26,6 @@ createTwindElement(SiderComponent, 'tuple-gpt-sider')
 function injectComponent() {
   const elementId = 'tuple-gpt-bilibili-host'
 
-  // 如果已经存在则移除
-  const existingElement = document.getElementById(elementId)
-  if (existingElement) {
-    existingElement.remove()
-  }
-
   injectCustomElement({
     containerSelector: '.right-container-inner',
     tagName: 'tuple-gpt-sider',
@@ -42,14 +33,10 @@ function injectComponent() {
     component: SiderComponent,
     position: 'afterElement',
     targetElementSelector: '.up-panel-container',
-    styles: {
-      position: 'relative',
-      zIndex: '9999',
-      pointerEvents: 'auto'
-    },
     props: {
       platformType: VideoType.BILIBILI
-    }
+    },
+    shadowStyles: themeStyles
   })
 }
 
@@ -118,13 +105,8 @@ registerMessageListener((message, sender) => {
   }
 })
 
-// 等待页面加载完成
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    injectComponent();
-    registerTab();
-  });
-} else {
-  injectComponent();
-  registerTab();
-} 
+// 等待页面加载完成后初始化
+onDOMReady(() => {
+  injectComponent()
+  registerTab()
+}) 
