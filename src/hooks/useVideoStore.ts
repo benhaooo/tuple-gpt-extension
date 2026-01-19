@@ -5,7 +5,7 @@ import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'
 
 export function useVideoStore(platformType: VideoType) {
-  const currentUrl = ref(window.location.href)
+  console.log("🚀 ~ useVideoStore ~ platformType:", platformType)
   const autoScroll = ref(true)
   const activeSubtitleIndex = ref<number | null>(null)
   const availableSubtitles = ref<SubtitleLanguageInfo[]>([])
@@ -126,7 +126,6 @@ export function useVideoStore(platformType: VideoType) {
   })
 
   return {
-    currentUrl,
     autoScroll,
     activeSubtitleIndex,
     selectedLanguage,

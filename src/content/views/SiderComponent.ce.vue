@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { useVideoStore } from '@/hooks/useVideoStore'
 import SubtitleViewer from './cpnt/subtitle/SubtitleViewer.vue'
@@ -12,6 +12,10 @@ import {
   DocumentChartBarIcon,
 } from '@heroicons/vue/24/outline'
 import { useThemeManager } from '@/composables/useThemeManager'
+import { createPinia, setActivePinia } from 'pinia';
+
+const pinia = createPinia();
+setActivePinia(pinia);
 
 // 接收平台类型作为组件属性
 const props = defineProps<{
@@ -19,7 +23,7 @@ const props = defineProps<{
 }>()
 
 const videoStore = useVideoStore(props.platformType)
-const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error,activeSubtitleIndex } = videoStore
+const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error, activeSubtitleIndex } = videoStore
 
 // 视图状态
 const activeTab = ref('subtitles')
@@ -33,7 +37,6 @@ const selectTab = (tab: 'subtitles' | 'summary') => {
 
 // 打开设置页面
 const openSettings = () => {
-  // 使用chrome扩展API打开设置页面
   chrome.runtime.sendMessage({ action: 'openOptionsPage' })
 }
 
@@ -54,30 +57,17 @@ const closeLanguageDropdown = () => {
   showLanguageDropdown.value = false
 }
 
-// 平台变化时重新加载字幕
-watch(() => props.platformType, async (newType, oldType) => {
-  if (newType !== oldType) {
-    await videoStore.initializeSubtitles(newType)
-  }
-})
-
 // 刷新字幕函数
 const loadSubtitles = async () => {
-  await videoStore.initializeSubtitles(props.platformType)
+  await videoStore.initializeSubtitles()
 }
 
-// 组件挂载时初始化
 const componentRef = ref<HTMLElement | null>(null)
 
 onMounted(() => {
-  loadSubtitles()
   if (componentRef.value) {
     const rootNode = componentRef.value.getRootNode()
-    if (rootNode instanceof ShadowRoot) {
-      // 使用新的接口方式调用 useThemeManager
-      const hostElement = rootNode.host as HTMLElement
-      useThemeManager(() => hostElement)
-    }
+    useThemeManager(() => rootNode.host)
   }
 
   // 添加全局点击事件监听器来关闭下拉框

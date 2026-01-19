@@ -1,7 +1,5 @@
 import { defineCustomElement } from 'vue'
-import { createPinia } from 'pinia'
 import { waitFor } from '@/utils/domUtils'
-import { useSettingsStore } from '@/stores/settingsStore'
 import restStyles from '@unocss/reset/tailwind.css?inline'
 
 /**
@@ -53,17 +51,6 @@ export async function injectCustomElement(options: {
           return acc
         }, {} as Record<string, any>)
       },
-      setup(setupProps, ctx) {
-        // 在组件内部创建并注入 Pinia
-        const pinia = createPinia()
-        ctx.app?.use(pinia)
-        useSettingsStore(pinia)
-
-        // 调用原组件的 setup
-        if (component.setup) {
-          return component.setup(setupProps, ctx)
-        }
-      }
     })
 
     customElements.define(tagName, CustomElement)

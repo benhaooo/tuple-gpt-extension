@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import ContentSection from './ContentSection.vue'
 import { useAIContent } from '@/composables/useAIContent'
-import { useVideoStore } from '@/hooks/useVideoStore'
 // 导入提示词
 import { SUMMARY_PROMPT, OVERVIEW_PROMPT, KEYPOINTS_PROMPT, QUESTIONS_PROMPT } from '@/constants/prompt'
 // 导入Heroicons图标
@@ -34,9 +33,6 @@ const contentSelections = ref({
   questions: true
 })
 
-// 获取 videoStore 实例
-const videoStore = useVideoStore()
-
 // 初始化各个内容区域
 const summaryContent = useAIContent()
 const overviewContent = useAIContent({ processLinks: true })
@@ -53,7 +49,7 @@ const handleTimeLink = (event: MouseEvent) => {
     const timeStr = target.getAttribute('data-time')
     if (timeStr) {
       // 直接调用 store 方法处理时间字符串
-      videoStore.jumpToTimeString(timeStr)
+      // videoStore.jumpToTimeString(timeStr)
     }
   }
 }
