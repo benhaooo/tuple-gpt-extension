@@ -24,8 +24,7 @@ const PLATFORM_SELECTORS: Record<VideoType, string[]> = {
     'video',
     '.html5-main-video',
     '#movie_player video'
-  ],
-  [VideoType.UNKNOWN]: []
+  ]
 }
 
 /**

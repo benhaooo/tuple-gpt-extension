@@ -53,7 +53,7 @@ export class BilibiliSubtitleManager extends BaseSubtitleManager {
    * 根据语言加载字幕
    * 返回字幕信息
    */
-  async loadSubtitlesByLanguage(subtitle: SubtitleLanguageInfo): Promise<SubtitleInfo> {
+  async loadSubtitlesByLanguage(subtitle: SubtitleLanguageInfo): Promise<SubtitleItem[]> {
     if (!subtitle.subtitle_url) return []
     const subtitleInfo = await getBilibiliSubtitlesByUrl(subtitle.subtitle_url)
     return subtitleInfo

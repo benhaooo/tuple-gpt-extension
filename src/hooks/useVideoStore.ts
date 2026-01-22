@@ -1,11 +1,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { VideoType, SubtitleLanguageInfo } from '@/utils/subtitlesApi'
-import { BaseSubtitleManager } from '@/managers/BaseSubtitleManager'
 import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'
 
 export function useVideoStore(platformType: VideoType) {
-  console.log("🚀 ~ useVideoStore ~ platformType:", platformType)
   const autoScroll = ref(true)
   const activeSubtitleIndex = ref<number | null>(null)
   const availableSubtitles = ref<SubtitleLanguageInfo[]>([])
@@ -13,14 +11,16 @@ export function useVideoStore(platformType: VideoType) {
   const videoTitle = ref('')
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const subtitleManager = ref<BaseSubtitleManager>(createSubtitleManager(platformType))
+  const subtitleManager = ref(createSubtitleManager(platformType))
+  const currentTime = ref(0)
 
 
   const videoTracker = useVideoTimeTracker({
     platformType,
     onUpdate: (time: number) => {
+      currentTime.value = time
       if (autoScroll.value) {
-        updateActiveSubtitleIndex(time)
+        updateActiveSubtitleIndex()
       }
     }
   })
@@ -39,7 +39,7 @@ export function useVideoStore(platformType: VideoType) {
 
   // Watch 选中字幕的语言变化，自动加载对应字幕
   watch(() => selectedSubtitle.value?.lan, async (newLan) => {
-    if (!newLan || !selectedSubtitle.value) return
+    if (!newLan || !selectedSubtitle.value || !subtitleManager.value) return
 
     isLoading.value = true
     error.value = null
@@ -51,6 +51,7 @@ export function useVideoStore(platformType: VideoType) {
   })
 
   async function initializeSubtitles() {
+    if(!subtitleManager.value) return
     isLoading.value = true
     error.value = null
 
@@ -78,8 +79,8 @@ export function useVideoStore(platformType: VideoType) {
   }
 
 
-  function updateActiveSubtitleIndex(time: number) {
-    const newIndex = findSubtitleIndexByTime(time)
+  function updateActiveSubtitleIndex() {
+    const newIndex = findSubtitleIndexByTime(currentTime.value)
     if (newIndex !== null && newIndex !== activeSubtitleIndex.value) {
       activeSubtitleIndex.value = newIndex
     }

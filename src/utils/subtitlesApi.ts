@@ -30,7 +30,7 @@ export async function getBilibiliAvailableLanguages(videoInfo: VideoInfo): Promi
  */
 export async function getBilibiliSubtitlesByUrl(
   subtitleUrl: string,
-): Promise<SubtitleInfo> {
+): Promise<SubtitleItem[]> {
   try {
     // 处理URL格式
     let url = subtitleUrl
@@ -50,7 +50,7 @@ export async function getBilibiliSubtitlesByUrl(
     }
 
     // 转换为统一的字幕格式
-    const subtitles: SubtitleItem[] = subtitleData.body.map((item: any) => ({
+    const subtitles = subtitleData.body.map((item: any) => ({
       time: formatTime(item.from),
       startTime: item.from * 1000,
       endTime: item.to * 1000,
@@ -96,7 +96,6 @@ export interface SubtitleInfo {
 export enum VideoType {
   YOUTUBE = 'youtube',
   BILIBILI = 'bilibili',
-  UNKNOWN = 'unknown'
 }
 
 // 视频信息接口
@@ -465,39 +464,3 @@ export async function getSubtitlesByUrl(
     throw new Error(`获取字幕失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
 }
-
-/**
- * 获取当前视频的字幕
- * @param platform 平台类型
- * @param translateTo 翻译目标语言代码(可选)
- * @returns 字幕数组Promise
- */
-export async function getCurrentVideoSubtitles(platform: VideoType, translateTo?: string): Promise<SubtitleItem[]> {
-  const videoId = getVideoId(platform)
-
-  if (!videoId) {
-    return []
-  }
-
-  let subtitles: SubtitleItem[] = []
-
-  switch (platform) {
-    case VideoType.YOUTUBE:
-      subtitles = await getYouTubeSubtitles(videoId)
-      break
-    case VideoType.BILIBILI:
-      subtitles = await getBilibiliSubtitles(videoId)
-      break
-    default:
-      return []
-  }
-
-  // 如果需要翻译，为每个字幕添加翻译
-  if (translateTo && subtitles.length > 0) {
-    // 这里可以调用翻译API进行批量翻译
-    // 为了演示，这里使用简单的模拟翻译
-    subtitles = await translateSubtitles(subtitles, translateTo)
-  }
-
-  return subtitles
-} 

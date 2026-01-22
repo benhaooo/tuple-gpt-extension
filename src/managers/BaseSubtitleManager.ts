@@ -29,7 +29,7 @@ export abstract class BaseSubtitleManager {
    * 根据语言加载字幕
    * 返回字幕信息，由调用方决定如何处理
    */
-  abstract loadSubtitlesByLanguage(language: SubtitleLanguageInfo): Promise<SubtitleInfo>
+  abstract loadSubtitlesByLanguage(language: SubtitleLanguageInfo): Promise<SubtitleItem[]>
 
   /**
    * 获取视频ID（子类需要实现具体逻辑）

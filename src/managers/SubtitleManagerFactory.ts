@@ -20,7 +20,6 @@ export class SubtitleManagerFactory {
 
       case VideoType.BILIBILI:
         return new BilibiliSubtitleManager()
-
     }
   }
 
