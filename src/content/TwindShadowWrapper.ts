@@ -1,6 +1,7 @@
 import { defineCustomElement } from 'vue'
 import { waitFor } from '@/utils/domUtils'
 import restStyles from '@unocss/reset/tailwind.css?inline'
+import themeStyles from '@/styles/variables.css?inline'
 
 /**
  * 将自定义元素注入到页面中的指定容器
@@ -13,10 +14,8 @@ export async function injectCustomElement(options: {
   elementId: string,            // 注入元素的ID
   position?: 'append' | 'prepend' | 'afterElement' | 'beforeElement', // 插入位置
   targetElementSelector?: string, // 目标元素选择器（用于afterElement和beforeElement）
-  timeout?: number,             // 超时时间（毫秒）
   styles?: Partial<CSSStyleDeclaration>, // 额外的样式
   props?: Record<string, any>,  // 传递给组件的属性
-  shadowStyles?: string,        // 要注入到Shadow DOM中的CSS样式
 }) {
   const {
     containerSelector,
@@ -25,15 +24,13 @@ export async function injectCustomElement(options: {
     elementId,
     position = 'append',
     targetElementSelector,
-    timeout = 10000,
     styles = {
       position: 'relative',
       zIndex: '9999',
       pointerEvents: 'auto',
       ...options.styles
     },
-    props = {},
-    shadowStyles
+    props = {}
   } = options
 
   if (!customElements.get(tagName)) {
@@ -41,7 +38,7 @@ export async function injectCustomElement(options: {
       ...component,
       styles: [
         ...component.styles,
-        shadowStyles,
+        themeStyles,
         restStyles
       ],
       props: {
@@ -56,15 +53,10 @@ export async function injectCustomElement(options: {
     customElements.define(tagName, CustomElement)
   }
 
-  const container = await waitFor<HTMLElement>(containerSelector, timeout)
+  const container = await waitFor(containerSelector)
 
   if (!container) {
     console.log(`[Tuple-GPT] Failed to find container ${containerSelector}`)
-    return
-  }
-
-  // 如果组件已存在，则不再注入
-  if (document.getElementById(elementId)) {
     return
   }
 

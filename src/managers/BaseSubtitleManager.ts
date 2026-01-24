@@ -1,4 +1,4 @@
-import { VideoType, SubtitleInfo, SubtitleLanguageInfo, SubtitleItem } from '../utils/subtitlesApi'
+import { SubtitleLanguageInfo, SubtitleItem } from '../utils/subtitlesApi'
 
 /**
  * 初始化结果接口

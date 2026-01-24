@@ -13,7 +13,6 @@ import {
   transcriptionToSubtitles,
 } from '@/utils/audioUtils'
 import { onDOMReady } from '@/utils/domUtils'
-import themeStyles from '@/styles/variables.css?inline'
 import '@/styles/variables.css'
 console.log('[Tuple-GPT] Bilibili content script loaded!')
 
@@ -35,8 +34,7 @@ function injectComponent() {
     targetElementSelector: '.up-panel-container',
     props: {
       platformType: VideoType.BILIBILI
-    },
-    shadowStyles: themeStyles
+    }
   })
 }
 
