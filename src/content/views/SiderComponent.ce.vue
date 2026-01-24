@@ -65,9 +65,10 @@ const loadSubtitles = async () => {
 const componentRef = ref<HTMLElement | null>(null)
 
 onMounted(() => {
-  if (componentRef.value) {
-    const rootNode = componentRef.value.getRootNode()
-    useThemeManager(() => rootNode.host)
+  const shadowRoot = componentRef.value?.shadowRoot;
+
+  if (shadowRoot) {
+    useThemeManager(() => shadowRoot.host as HTMLElement);
   }
 
   // 添加全局点击事件监听器来关闭下拉框

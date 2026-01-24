@@ -19,20 +19,9 @@ export abstract class BaseSubtitleManager {
    * 只返回可用语言列表和视频标题，不加载具体字幕
    */
   abstract initialize(): Promise<InitializeResult>
-
-  /**
-   * 清理资源
-   */
-  abstract cleanup(): void
-
   /**
    * 根据语言加载字幕
    * 返回字幕信息，由调用方决定如何处理
    */
   abstract loadSubtitlesByLanguage(language: SubtitleLanguageInfo): Promise<SubtitleItem[]>
-
-  /**
-   * 获取视频ID（子类需要实现具体逻辑）
-   */
-  protected abstract getVideoId(): string | null
 }

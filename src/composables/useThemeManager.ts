@@ -6,7 +6,7 @@ import { themes, defaultTheme, ThemeName } from '@/constants/themes'
  * Manages the dynamic application of theme variables.
  * @param getTargetElement - A function that returns the element to which theme variables will be applied. Defaults to document.documentElement.
  */
-export function useThemeManager(getTargetElement: () => HTMLElement | null = () => document.documentElement) {
+export function useThemeManager(getTargetElement = () => document.documentElement) {
   const settingsStore = useSettingsStore()
 
   const applyTheme = (themeName: ThemeName) => {
@@ -27,14 +27,14 @@ export function useThemeManager(getTargetElement: () => HTMLElement | null = () 
       const styleKeys = Object.keys(themes[defaultTheme]);
       styleKeys.forEach(key => element.style.removeProperty(`--${key}`));
     }
-    
+
     // Apply new variables from the theme object
     Object.entries(theme).forEach(([key, value]) => {
       element.style.setProperty(`--${key}`, value);
     });
   };
 
-  // Watch for theme changes in the store and apply them
+
   watch(
     () => settingsStore.settings.theme,
     (newTheme) => {
@@ -42,6 +42,6 @@ export function useThemeManager(getTargetElement: () => HTMLElement | null = () 
         applyTheme(newTheme as ThemeName);
       }
     },
-    { immediate: true }, // Use immediate to apply theme on initial load
+    { immediate: true }
   );
 } 

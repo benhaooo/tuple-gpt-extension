@@ -21,7 +21,6 @@ export class YouTubeSubtitleManager extends BaseSubtitleManager {
    */
   async initialize(): Promise<InitializeResult> {
     try {
-      this.cleanup()
 
       this.currentVideoId = this.getVideoId()
       if (!this.currentVideoId) {
@@ -48,13 +47,7 @@ export class YouTubeSubtitleManager extends BaseSubtitleManager {
     }
   }
 
-  /**
-   * 清理资源
-   */
-  cleanup(): void {
-    this.videoTitle = ''
-    this.currentVideoId = null
-  }
+
 
   /**
    * 根据语言加载字幕
@@ -90,10 +83,4 @@ export class YouTubeSubtitleManager extends BaseSubtitleManager {
     }
   }
 
-  /**
-   * 获取YouTube视频ID
-   */
-  protected getVideoId(): string | null {
-    return getVideoId(VideoType.YOUTUBE)
-  }
 }

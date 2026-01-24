@@ -16,7 +16,6 @@ import {
  * 专门处理 Bilibili 平台的字幕逻辑
  */
 export class BilibiliSubtitleManager extends BaseSubtitleManager {
-  private videoTitle: string = ''
   private currentVideoId: string = ''
   private videoInfo: VideoInfo | null = null
 
@@ -38,15 +37,6 @@ export class BilibiliSubtitleManager extends BaseSubtitleManager {
       videoTitle: this.videoInfo.title
     }
 
-  }
-
-  /**
-   * 清理资源
-   */
-  cleanup(): void {
-    this.videoTitle = ''
-    this.currentVideoId = null
-    this.videoInfo = null
   }
 
   /**

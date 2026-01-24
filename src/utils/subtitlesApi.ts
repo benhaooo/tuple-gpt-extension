@@ -92,11 +92,13 @@ export interface SubtitleInfo {
   subtitles: SubtitleItem[]; // 字幕列表
 }
 
-// 视频类型枚举
-export enum VideoType {
-  YOUTUBE = 'youtube',
-  BILIBILI = 'bilibili',
-}
+// 视频类型
+export const VideoType = {
+  YOUTUBE: 'youtube',
+  BILIBILI: 'bilibili',
+} as const;
+
+export type VideoType = typeof VideoType[keyof typeof VideoType];
 
 // 视频信息接口
 export interface VideoInfo {
