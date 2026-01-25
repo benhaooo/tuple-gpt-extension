@@ -23,7 +23,7 @@ const props = defineProps<{
 }>()
 
 const videoStore = useVideoStore(props.platformType)
-const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error, activeSubtitleIndex } = videoStore
+const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error, activeSubtitleIndex, initializeSubtitles } = videoStore
 
 // 视图状态
 const activeTab = ref('subtitles')
@@ -85,6 +85,16 @@ const summarizeVideo = () => {
   // 切换到总结选项卡
   activeTab.value = 'summary'
 }
+
+// 刷新组件方法
+const refresh = () => {
+  initializeSubtitles()
+}
+
+// 暴露方法给外部调用
+defineExpose({
+  refresh
+})
 
 
 </script>

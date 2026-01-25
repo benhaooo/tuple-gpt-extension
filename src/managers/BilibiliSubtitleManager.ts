@@ -16,16 +16,17 @@ import {
  * 专门处理 Bilibili 平台的字幕逻辑
  */
 export class BilibiliSubtitleManager extends BaseSubtitleManager {
-  private currentVideoId: string = ''
+  private currentVideoId = ''
   private videoInfo: VideoInfo | null = null
 
   /**
    * 初始化 Bilibili 字幕管理器
    * 只返回可用语言列表和视频标题，不加载具体字幕
    */
-  async initialize(): Promise<InitializeResult> {
-    this.currentVideoId = getVideoId(VideoType.BILIBILI)
-
+  async initialize() {
+    const newVideoId = getVideoId(VideoType.BILIBILI)
+    if(newVideoId === this.currentVideoId) return
+    this.currentVideoId = newVideoId
     this.videoInfo = await getBilibiliVideoInfo(this.currentVideoId)
 
     const availableLanguages = await getBilibiliAvailableLanguages(this.videoInfo)
@@ -34,7 +35,8 @@ export class BilibiliSubtitleManager extends BaseSubtitleManager {
 
     return {
       availableLanguages,
-      videoTitle: this.videoInfo.title
+      videoTitle: this.videoInfo.title,
+      videoId: this.currentVideoId
     }
 
   }

@@ -3,9 +3,14 @@ import { waitFor } from '@/utils/domUtils'
 import restStyles from '@unocss/reset/tailwind.css?inline'
 import themeStyles from '@/styles/variables.css?inline'
 
+interface MyComponentElement extends HTMLElement {
+  refresh: () => void;
+}
+
 /**
  * 将自定义元素注入到页面中的指定容器
  * @param options 注入选项
+ * @returns 返回挂载的自定义元素实例
  */
 export async function injectCustomElement(options: {
   containerSelector: string,     // 容器选择器
@@ -61,7 +66,7 @@ export async function injectCustomElement(options: {
   }
 
   // 创建自定义元素的实例作为挂载点
-  const mountPoint = document.createElement(tagName)
+  const mountPoint = document.createElement(tagName) as MyComponentElement
   mountPoint.id = elementId
 
   // 应用额外的样式
@@ -88,10 +93,8 @@ export async function injectCustomElement(options: {
     case 'beforeElement':
       if (targetElementSelector) {
         const targetElement = container.querySelector(targetElementSelector)
-        if (targetElement) {
-          targetElement.insertAdjacentElement('beforebegin', mountPoint)
-          break
-        }
+        targetElement?.insertAdjacentElement('beforebegin', mountPoint)
+        break
       }
       // 如果没有找到目标元素，回退到append
       container.appendChild(mountPoint)
@@ -103,4 +106,6 @@ export async function injectCustomElement(options: {
       break
   }
   console.log(`[Tuple-GPT] Component injected with ID ${elementId} using Shadow DOM.`)
+
+  return mountPoint
 } 

@@ -6,6 +6,7 @@ import { SubtitleLanguageInfo, SubtitleItem } from '../utils/subtitlesApi'
 export interface InitializeResult {
   availableLanguages: SubtitleLanguageInfo[]
   videoTitle: string
+  videoId: string
 }
 
 /**

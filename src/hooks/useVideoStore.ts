@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, watchEffect } from 'vue'
 import { VideoType, SubtitleLanguageInfo } from '@/utils/subtitlesApi'
 import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'
@@ -9,6 +9,7 @@ export function useVideoStore(platformType: VideoType) {
   const availableSubtitles = ref<SubtitleLanguageInfo[]>([])
   const selectedLanguage = ref<string>('')
   const videoTitle = ref('')
+  const videoId = ref('')
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const subtitleManager = ref(createSubtitleManager(platformType))
@@ -37,34 +38,40 @@ export function useVideoStore(platformType: VideoType) {
     })
   })
 
-  // Watch 选中字幕的语言变化，自动加载对应字幕
-  watch(() => selectedSubtitle.value?.lan, async (newLan) => {
-    if (!newLan || !selectedSubtitle.value || !subtitleManager.value) return
 
-    isLoading.value = true
-    error.value = null
+  watch(
+    () => [selectedSubtitle.value?.lan, videoId.value],
+    async ([newLan, newVideoId], [oldLan, oldVideoId]) => {
+      // 只有当语言或视频ID发生变化时才执行
+      if (newLan === oldLan && newVideoId === oldVideoId) return
+      if (!newLan || !newVideoId || !selectedSubtitle.value || !subtitleManager.value) return
 
-    const subtitleInfo = await subtitleManager.value.loadSubtitlesByLanguage(selectedSubtitle.value)
+      isLoading.value = true
+      error.value = null
 
-    selectedSubtitle.value.subtitles = subtitleInfo
-    isLoading.value = false
-  })
+      const subtitleInfo = await subtitleManager.value.loadSubtitlesByLanguage(selectedSubtitle.value)
+
+      selectedSubtitle.value.subtitles = subtitleInfo
+      isLoading.value = false
+    }
+  )
 
   async function initializeSubtitles() {
-    if(!subtitleManager.value) return
+    if (!subtitleManager.value) return
     isLoading.value = true
     error.value = null
 
     const result = await subtitleManager.value.initialize()
+    isLoading.value = false
 
+    if(!result) return
     availableSubtitles.value = result.availableLanguages
     videoTitle.value = result.videoTitle
-
+    videoId.value = result.videoId
     // 自动选择第一个语言（如果有）
     if (result.availableLanguages.length > 0) {
       selectedLanguage.value = result.availableLanguages[0].lan
     }
-
   }
 
   function setAutoScroll(enabled: boolean) {

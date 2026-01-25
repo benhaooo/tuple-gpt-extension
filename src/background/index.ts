@@ -92,26 +92,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // 保持消息通道开放
 });
 
-// 监听所有导航完成事件
-chrome.webNavigation.onCompleted.addListener((details) => {
-  // 仅处理主框架的导航
-  if (details.frameId === 0) {
-    const url = details.url;
-    const tabId = details.tabId;
+// 监听标签页更新事件（包括URL变化）
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // 当URL发生变化时
+  if (changeInfo.url) {
+    console.log(`Tab ${tabId} URL changed to: ${changeInfo.url}`);
     
-    // 处理URL变化
-    handleUrlChange(tabId, url);
-  }
-});
-
-// 监听URL片段变化（哈希变化，常见于SPA）
-chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-  // 仅处理主框架的导航
-  if (details.frameId === 0) {
-    const url = details.url;
-    const tabId = details.tabId;
-    
-    // 处理URL变化
-    handleUrlChange(tabId, url);
+    // 直接发送消息到 content script
+    chrome.tabs.sendMessage(tabId, {
+      type: 'URL_CHANGE_NOTIFICATION',
+      data: { url: changeInfo.url }
+    })
   }
 }); 

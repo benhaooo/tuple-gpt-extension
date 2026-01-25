@@ -85,7 +85,7 @@
                     <div @click.stop="duplicateAssistant(assistant.id)"
                       class="cursor-pointer p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-green-500 rounded-l-md">
                       <el-icon>
-                        <CopyDocument />
+                        <!-- <CopyDocument /> -->
                       </el-icon>
                     </div>
 

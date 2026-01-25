@@ -43,9 +43,7 @@ export function useVideoTimeTracker(options: UseVideoTimeTrackerOptions) {
   function setupVideoListeners(element: HTMLVideoElement) {
     // 监听视频时间更新
     timeUpdateHandler = () => {
-      if (options.onUpdate) {
-        options.onUpdate(element.currentTime)
-      }
+        options.onUpdate?.(element.currentTime)
     }
 
     element.addEventListener('timeupdate', timeUpdateHandler)
@@ -107,6 +105,5 @@ export function useVideoTimeTracker(options: UseVideoTimeTrackerOptions) {
 
   return {
     jumpToTime,
-    getCurrentVideoElement: () => videoElement
   }
 }
