@@ -2,47 +2,6 @@ import { MessageType, sendMessageToTab } from '../utils/messages';
 
 console.log('Tuple-GPT background script loaded');
 
-// 存储活跃的标签页ID
-const activeTabs = new Set<number>();
-
-// 注册标签页
-function registerTab(tabId: number): void {
-  activeTabs.add(tabId);
-  console.log(`Registered tab ${tabId}`);
-  console.log('Active tabs:', Array.from(activeTabs));
-}
-
-// 取消注册标签页
-function unregisterTab(tabId: number): void {
-  if (activeTabs.delete(tabId)) {
-    console.log(`Unregistered tab ${tabId}`);
-  }
-}
-
-// 当标签页关闭时，移除其注册
-chrome.tabs.onRemoved.addListener((tabId) => {
-  if (activeTabs.has(tabId)) {
-    activeTabs.delete(tabId);
-    console.log(`Removed registration for closed tab ${tabId}`);
-  }
-});
-
-// 处理URL变化
-function handleUrlChange(tabId: number, url: string): void {
-  // 检查是否是注册的标签页
-  if (activeTabs.has(tabId)) {
-    console.log(`Notifying tab ${tabId} of URL change: ${url}`);
-
-    // 发送URL变化通知
-    sendMessageToTab(tabId, {
-      type: MessageType.URL_CHANGE_NOTIFICATION,
-      data: { url }
-    }).catch(error => {
-      console.error(`Failed to send notification to tab ${tabId}:`, error);
-    });
-  }
-}
-
 // 处理 AI 内容生成请求
 async function handleAIContentGeneration(prompt: string, tabId: number, sendResponse: (response: any) => void): Promise<void> {
   try {
@@ -145,35 +104,17 @@ async function handleAIContentGeneration(prompt: string, tabId: number, sendResp
 // 监听来自内容脚本的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = sender.tab?.id;
-  
-  if (message.type === 'GET_TAB_ID') {
-    sendResponse({ tabId });
-    return true;
-  }
-  
+
   // 处理打开设置页面的请求
   if (message.action === 'openOptionsPage') {
     chrome.runtime.openOptionsPage();
     sendResponse({ success: true });
     return true;
   }
-  
-  if (!tabId) {
-    sendResponse({ success: false, error: 'No tab ID in sender' });
-    return true;
-  }
-  
+
+  if (!tabId) return
+
   switch (message.type) {
-    case MessageType.REGISTER_TAB:
-      registerTab(tabId);
-      sendResponse({ success: true });
-      break;
-
-    case MessageType.UNREGISTER_TAB:
-      unregisterTab(tabId);
-      sendResponse({ success: true });
-      break;
-
     case MessageType.TRANSCRIBE_BILIBILI_AUDIO:
       // 转发音频转录消息到对应的content script
       sendMessageToTab(tabId, message).then(response => {
@@ -187,12 +128,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // 处理 AI 内容生成请求
       handleAIContentGeneration(message.prompt, tabId, sendResponse);
       return true; // 保持异步响应通道开放
-
-    default:
-      sendResponse({ success: false, error: 'Unknown message type' });
-      break;
   }
-  
+
   return true; // 保持消息通道开放
 });
 
@@ -200,12 +137,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // 当URL发生变化时
   if (changeInfo.url) {
-    console.log(`Tab ${tabId} URL changed to: ${changeInfo.url}`);
-    
     // 直接发送消息到 content script
     chrome.tabs.sendMessage(tabId, {
       type: 'URL_CHANGE_NOTIFICATION',
       data: { url: changeInfo.url }
     })
   }
-}); 
+});
+
+// 点击浏览器右上角你的扩展程序图标打开/关闭侧边栏
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+});

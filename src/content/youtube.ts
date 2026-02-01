@@ -1,10 +1,6 @@
 import { injectCustomElement } from '@/content/TwindShadowWrapper'
 import { VideoType } from '@/utils/subtitlesApi'
 import SiderComponent from './views/SiderComponent.ce.vue'
-import {
-  MessageType,
-  sendMessageToBackground
-} from '@/utils/messages'
 import { onDOMReady } from '@/utils/domUtils'
 import '@/styles/variables.css?inline'
 console.log('[Tuple-GPT] YouTube content script loaded!')
@@ -50,22 +46,6 @@ export function initializeYouTube() {
 
 }
 
-// 注册标签页以接收URL变化通知
-async function registerTab() {
-  try {
-    // 注册标签页以接收URL变化通知
-    await sendMessageToBackground({
-      type: MessageType.REGISTER_TAB
-    });
-    
-    console.log('[Tuple-GPT] Registered tab for URL change notifications');
-  } catch (error) {
-    console.error('[Tuple-GPT] Failed to register tab:', error);
-  }
-}
-
-
 onDOMReady(() => {
   initializeYouTube()
-  registerTab()
 })

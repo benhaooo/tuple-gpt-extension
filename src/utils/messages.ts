@@ -6,10 +6,6 @@ export enum MessageType {
   NAVIGATION_CHANGED = 'NAVIGATION_CHANGED',
   // 字幕操作
   INITIALIZE_SUBTITLES = 'INITIALIZE_SUBTITLES',
-  // 标签页注册相关
-  REGISTER_TAB = 'REGISTER_TAB',
-  UNREGISTER_TAB = 'UNREGISTER_TAB',
-  URL_CHANGE_NOTIFICATION = 'URL_CHANGE_NOTIFICATION',
   // 音频转录相关
   TRANSCRIBE_BILIBILI_AUDIO = 'TRANSCRIBE_BILIBILI_AUDIO',
   AUDIO_TRANSCRIPTION_COMPLETE = 'AUDIO_TRANSCRIPTION_COMPLETE',
@@ -22,30 +18,6 @@ export enum MessageType {
 export interface Message {
   type: MessageType;
   data?: any;
-}
-
-/**
- * 标签页注册消息
- */
-export interface RegisterTabMessage extends Message {
-  type: MessageType.REGISTER_TAB;
-}
-
-/**
- * 取消标签页注册消息
- */
-export interface UnregisterTabMessage extends Message {
-  type: MessageType.UNREGISTER_TAB;
-}
-
-/**
- * URL变化通知消息
- */
-export interface UrlChangeNotificationMessage extends Message {
-  type: MessageType.URL_CHANGE_NOTIFICATION;
-  data: {
-    url: string;
-  };
 }
 
 /**
