@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, watchEffect } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { VideoType, SubtitleLanguageInfo } from '@/utils/subtitlesApi'
 import { createSubtitleManager } from '@/managers/SubtitleManagerFactory'
 import { useVideoTimeTracker } from '@/hooks/useVideoTimeTracker'

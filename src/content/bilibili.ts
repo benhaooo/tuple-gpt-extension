@@ -11,9 +11,6 @@ import {
 } from '@/utils/audioUtils'
 import { onDOMReady } from '@/utils/domUtils'
 import '@/styles/variables.css'
-console.log('[Tuple-GPT] Bilibili content script loaded!')
-
-
 /**
  * 将Vue自定义元素注入到B站页面的指定位置。
  * 该元素会自动创建并使用Shadow DOM来隔离样式。
@@ -24,11 +21,11 @@ async function injectComponent() {
   const elementId = 'tuple-gpt-bilibili'
 
   const mountPoint = await injectCustomElement({
-    containerSelector: '#danmukuBox',
+    containerSelector: '.danmaku-wrap',
     tagName: 'tuple-gpt-sider',
     elementId: elementId,
     component: SiderComponent,
-    position: 'beforeElement',
+    position: 'prepend',
     targetElementSelector: '.danmaku-wrap',
     props: {
       platformType: VideoType.BILIBILI

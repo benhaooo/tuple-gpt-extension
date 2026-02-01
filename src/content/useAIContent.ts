@@ -35,71 +35,49 @@ export function useAIContent(options: AIContentOptions = {}) {
     try {
       isGenerating.value = true
       content.value = '' // 清空之前的内容
-      
-      // 创建 fetch 请求
-      const response = await fetch('https://api.302.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer sk-KczEawHZsejJCgv4SDoy2PEjRsnakEjdsTWpIpOeirNjFH2I'
-        },
-        body: JSON.stringify({
-          model: 'gemini-2.5-pro-preview-05-06',
-          messages: [
-            { role: 'user', content: prompt }
-          ],
-          stream: true // 启用流式输出
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`API请求失败: ${response.status}`)
-      }
-      
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('无法获取响应流')
-      }
-      
-      // 读取流数据
-      const decoder = new TextDecoder()
-      let done = false
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read()
-        done = readerDone
-        
-        if (done) break
-        
-        const chunk = decoder.decode(value, { stream: true })
-      
-        // 解析SSE数据，从流中提取内容
-        const lines = chunk.split('\n')
-        for (const line of lines) {
-          if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-            try {
-              const data = JSON.parse(line.substring(6)) // 去掉 "data: "
-              if (data.choices && data.choices[0]?.delta?.content) {
-                content.value += data.choices[0].delta.content
-              }
-            } catch (e) {
-              console.error('解析流数据失败', e)
+
+      // 创建一个 Promise 来处理流式响应
+      return new Promise((resolve, reject) => {
+        // 监听来自 background 的流式数据
+        const messageListener = (message: any) => {
+          if (message.type === 'AI_CONTENT_CHUNK') {
+            content.value += message.chunk
+          } else if (message.type === 'AI_CONTENT_COMPLETE') {
+            // 移除监听器
+            chrome.runtime.onMessage.removeListener(messageListener)
+
+            // 当内容是概览时，处理链接
+            if (options.processLinks) {
+              content.value = processOverviewLinks(content.value)
             }
+
+            isGenerating.value = false
+            resolve(content.value)
           }
         }
-      }
-      
-      // 当内容是概览时，处理链接
-      if (options.processLinks) {
-        content.value = processOverviewLinks(content.value)
-      }
-      
-      return content.value
+
+        // 添加监听器
+        chrome.runtime.onMessage.addListener(messageListener)
+
+        // 发送请求到 background script
+        chrome.runtime.sendMessage(
+          {
+            type: 'GENERATE_AI_CONTENT',
+            prompt: prompt
+          },
+          (response) => {
+            if (response && !response.success) {
+              chrome.runtime.onMessage.removeListener(messageListener)
+              isGenerating.value = false
+              reject(new Error(response.error || 'API请求失败'))
+            }
+          }
+        )
+      })
     } catch (error) {
       console.error('处理API请求失败:', error)
-      throw error
-    } finally {
       isGenerating.value = false
+      throw error
     }
   }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import ContentSection from './ContentSection.vue'
-import { useAIContent } from '@/composables/useAIContent'
+import { useAIContent } from '@/content/useAIContent'
 // 导入提示词
 import { SUMMARY_PROMPT, OVERVIEW_PROMPT, KEYPOINTS_PROMPT, QUESTIONS_PROMPT } from '@/constants/prompt'
 // 导入Heroicons图标

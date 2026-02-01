@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, useShadowRoot } from 'vue'
 import { VideoType } from '@/utils/subtitlesApi'
 import { useVideoStore } from '@/hooks/useVideoStore'
 import SubtitleViewer from './cpnt/subtitle/SubtitleViewer.vue'
@@ -17,6 +17,14 @@ import { createPinia, setActivePinia } from 'pinia';
 const pinia = createPinia();
 setActivePinia(pinia);
 
+// Tab类型定义
+const TabTypes = {
+  SUBTITLES: 'subtitles',
+  SUMMARY: 'summary',
+} as const
+
+type TabType = typeof TabTypes[keyof typeof TabTypes]
+
 // 接收平台类型作为组件属性
 const props = defineProps<{
   platformType: VideoType
@@ -26,12 +34,12 @@ const videoStore = useVideoStore(props.platformType)
 const { videoTitle, availableSubtitles, selectedSubtitle, selectedLanguage, subtitlesContent, isLoading, error, activeSubtitleIndex, initializeSubtitles } = videoStore
 
 // 视图状态
-const activeTab = ref('subtitles')
+const activeTab = ref<TabType>(TabTypes.SUBTITLES)
 const showLanguageDropdown = ref(false)
 
 
 // UI交互处理函数（仅UI状态更新，无实际功能）
-const selectTab = (tab: 'subtitles' | 'summary') => {
+const selectTab = (tab: TabType) => {
   activeTab.value = tab
 }
 
@@ -62,11 +70,8 @@ const loadSubtitles = async () => {
   await videoStore.initializeSubtitles()
 }
 
-const componentRef = ref<HTMLElement | null>(null)
-
+const shadowRoot = useShadowRoot();
 onMounted(() => {
-  const shadowRoot = componentRef.value?.shadowRoot;
-
   if (shadowRoot) {
     useThemeManager(() => shadowRoot.host as HTMLElement);
   }
@@ -82,8 +87,7 @@ onUnmounted(() => {
 
 // 总��视频功能
 const summarizeVideo = () => {
-  // 切换到总结选项卡
-  activeTab.value = 'summary'
+  activeTab.value = TabTypes.SUMMARY
 }
 
 // 刷新组件方法
@@ -100,13 +104,12 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="componentRef"
+  <div
     class="w-full h-full bg-surface text-foreground rounded-lg shadow-lg font-sans text-sm overflow-hidden flex flex-col">
     <!-- 头部 -->
     <header class="flex justify-between items-center p-3 border-b border-border flex-shrink-0">
       <div class="flex items-center gap-2">
-        <!-- <img src="../../assets/sider-logo.svg" alt="Sider" class="w-7 h-7" /> -->
-        <h1 class="text-lg font-bold text-foreground">Sider</h1>
+        <h1 class="text-lg font-bold text-foreground">Tuple</h1>
       </div>
       <div class="flex items-center gap-3 text-foreground">
         <!-- Sliding Tab Switch -->
@@ -114,17 +117,17 @@ defineExpose({
           <!-- Slider -->
           <div
             class="absolute top-1 left-1 h-6 w-7 transform bg-background rounded-md shadow-sm transition-transform duration-200 ease-in-out"
-            :style="{ transform: activeTab === 'summary' ? 'translateX(100%)' : 'translateX(0)' }"></div>
+            :style="{ transform: activeTab === TabTypes.SUMMARY ? 'translateX(100%)' : 'translateX(0)' }"></div>
 
           <!-- Subtitles Button -->
-          <button @click="selectTab('subtitles')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
-            :class="activeTab === 'subtitles' ? 'text-primary' : 'text-muted-foreground'">
+          <button @click="selectTab(TabTypes.SUBTITLES)" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
+            :class="activeTab === TabTypes.SUBTITLES ? 'text-primary' : 'text-muted-foreground'">
             <Bars3Icon class="h-5 w-5" />
           </button>
 
           <!-- Summary/CC Button -->
-          <button @click="selectTab('summary')" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
-            :class="activeTab === 'summary' ? 'text-primary' : 'text-muted-foreground'">
+          <button @click="selectTab(TabTypes.SUMMARY)" class="relative z-10 p-1 w-7 h-6 flex justify-center items-center"
+            :class="activeTab === TabTypes.SUMMARY ? 'text-primary' : 'text-muted-foreground'">
             <DocumentTextIcon class="h-5 w-5" />
           </button>
         </div>
@@ -161,14 +164,14 @@ defineExpose({
 
     <!-- 主体内容 -->
     <main class="flex-grow overflow-y-auto min-h-0">
-      <div v-show="activeTab === 'subtitles'" class="p-3">
+      <div v-show="activeTab === TabTypes.SUBTITLES" class="p-3">
         <SubtitleViewer :platform-type="props.platformType" :is-loading="isLoading" :error="error"
           :subtitles-content="subtitlesContent" :selected-subtitle="selectedSubtitle"
           :active-subtitle-index="activeSubtitleIndex" v-model:auto-scroll="videoStore.autoScroll.value"
           @jump-to-time="videoStore.jumpToTime" @load-subtitles="loadSubtitles" />
       </div>
       <!-- 总结视图 -->
-      <div v-show="activeTab === 'summary'" class="p-3">
+      <div v-show="activeTab === TabTypes.SUMMARY" class="p-3">
         <div class="flex justify-between items-center mb-2">
           <h2 class="text-base font-medium text-foreground">{{ videoTitle || '视频总结' }}</h2>
         </div>

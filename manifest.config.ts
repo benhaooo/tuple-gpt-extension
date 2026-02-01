@@ -9,7 +9,7 @@ export default defineManifest({
   host_permissions: [
     "https://*.youtube.com/*",
     "https://*.bilibili.com/*",
-    "https://api.openai.com/*"
+    "<all_urls>"
   ],
   icons: {
     '48': 'public/logo.png',

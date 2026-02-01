@@ -8,6 +8,18 @@ interface MyComponentElement extends HTMLElement {
 }
 
 /**
+ * 元素插入位置枚举
+ */
+export const InsertPosition = {
+  APPEND: 'append',
+  PREPEND: 'prepend',
+  AFTER_ELEMENT: 'afterElement',
+  BEFORE_ELEMENT: 'beforeElement',
+} as const
+
+export type InsertPosition = typeof InsertPosition[keyof typeof InsertPosition]
+
+/**
  * 将自定义元素注入到页面中的指定容器
  * @param options 注入选项
  * @returns 返回挂载的自定义元素实例
@@ -17,7 +29,7 @@ export async function injectCustomElement(options: {
   tagName: string,              // 自定义元素标签名
   component: any,               // 要注入的Vue组件
   elementId: string,            // 注入元素的ID
-  position?: 'append' | 'prepend' | 'afterElement' | 'beforeElement', // 插入位置
+  position?: InsertPosition, // 插入位置
   targetElementSelector?: string, // 目标元素选择器（用于afterElement和beforeElement）
   styles?: Partial<CSSStyleDeclaration>, // 额外的样式
   props?: Record<string, any>,  // 传递给组件的属性
@@ -27,7 +39,7 @@ export async function injectCustomElement(options: {
     tagName,
     component,
     elementId,
-    position = 'append',
+    position = InsertPosition.APPEND,
     targetElementSelector,
     styles = {
       position: 'relative',
@@ -60,11 +72,7 @@ export async function injectCustomElement(options: {
 
   const container = await waitFor(containerSelector)
 
-  if (!container) {
-    console.log(`[Tuple-GPT] Failed to find container ${containerSelector}`)
-    return
-  }
-
+  if (!container) return
   // 创建自定义元素的实例作为挂载点
   const mountPoint = document.createElement(tagName) as MyComponentElement
   mountPoint.id = elementId
@@ -74,35 +82,35 @@ export async function injectCustomElement(options: {
 
   // 根据指定的位置插入元素
   switch (position) {
-    case 'prepend':
-      container.insertBefore(mountPoint, container.firstChild)
+    case InsertPosition.PREPEND:
+      container.prepend(mountPoint)
       break
 
-    case 'afterElement':
+    case InsertPosition.AFTER_ELEMENT:
       if (targetElementSelector) {
         const targetElement = container.querySelector(targetElementSelector)
         if (targetElement) {
-          targetElement.insertAdjacentElement('afterend', mountPoint)
+          targetElement.after(mountPoint)
           break
         }
       }
-      // 如果没有找到目标元素，回退到append
-      container.appendChild(mountPoint)
+      container.append(mountPoint)
       break
 
-    case 'beforeElement':
+    case InsertPosition.BEFORE_ELEMENT:
       if (targetElementSelector) {
         const targetElement = container.querySelector(targetElementSelector)
-        targetElement?.insertAdjacentElement('beforebegin', mountPoint)
-        break
+        if (targetElement) {
+          targetElement.before(mountPoint)
+          break
+        }
       }
-      // 如果没有找到目标元素，回退到append
-      container.appendChild(mountPoint)
+      container.append(mountPoint)
       break
 
-    case 'append':
+    case InsertPosition.APPEND:
     default:
-      container.appendChild(mountPoint)
+      container.append(mountPoint)
       break
   }
   console.log(`[Tuple-GPT] Component injected with ID ${elementId} using Shadow DOM.`)
